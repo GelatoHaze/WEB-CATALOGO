@@ -86,9 +86,24 @@ export const StoreService = {
   getConfig: (): AppConfig => {
     try {
         const stored = localStorage.getItem(COLLECTIONS.CONFIG);
-        return stored ? JSON.parse(stored) : INITIAL_CONFIG;
+        const parsed = stored ? JSON.parse(stored) : {};
+        
+        // Merge defensivo: Usa los datos guardados, pero si falta alguna propiedad crítica (como array de categorías),
+        // rellénala con la configuración inicial para evitar crasheos.
+        return {
+            ...INITIAL_CONFIG,
+            ...parsed,
+            headerSlides: (parsed.headerSlides && Array.isArray(parsed.headerSlides) && parsed.headerSlides.length > 0) 
+                ? parsed.headerSlides 
+                : INITIAL_CONFIG.headerSlides,
+            categories: (parsed.categories && Array.isArray(parsed.categories) && parsed.categories.length > 0) 
+                ? parsed.categories 
+                : INITIAL_CONFIG.categories
+        };
     } catch (e) {
-        console.error("Error reading config", e);
+        console.error("Error reading config, reverting to default", e);
+        // Si hay error grave, limpiamos para recuperar la app
+        localStorage.removeItem(COLLECTIONS.CONFIG);
         return INITIAL_CONFIG;
     }
   },
@@ -96,7 +111,8 @@ export const StoreService = {
   getProducts: (): Product[] => {
     try {
         const stored = localStorage.getItem(COLLECTIONS.PRODUCTS);
-        return stored ? JSON.parse(stored) : [];
+        const parsed = stored ? JSON.parse(stored) : [];
+        return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
         console.error("Error reading products", e);
         return [];

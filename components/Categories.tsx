@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Smartphone, Coffee, Tv, Refrigerator, Laptop, Watch, Headphones, Camera, Home, Gamepad, Shirt, Car, Music, Box } from 'lucide-react';
 import { Category } from '../types';
@@ -24,12 +25,14 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   music: <Music className="w-6 h-6" />,
 };
 
-const Categories: React.FC<CategoriesProps> = ({ selectedCategory, onSelectCategory, categories }) => {
+const Categories: React.FC<CategoriesProps> = ({ selectedCategory, onSelectCategory, categories = [] }) => {
   
-  // Combine "All" with user categories
+  // Combine "All" with user categories, protecting against undefined
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  
   const allCategories = [
     { id: 'all', name: 'Todo', icon: 'all' },
-    ...categories
+    ...safeCategories
   ];
 
   const getIcon = (iconName: string) => {

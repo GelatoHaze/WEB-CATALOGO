@@ -9,16 +9,20 @@ interface HeroProps {
 
 const Hero: React.FC<HeroProps> = ({ config }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const slides = config.headerSlides && config.headerSlides.length > 0 ? config.headerSlides : [
-    {
+  
+  // Protección robusta: Si no hay slides en la config, usa un default para evitar crash
+  const defaultSlide = {
       id: 'default',
       image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2670&auto=format&fit=crop',
       title: 'Innovación y Tecnología Premium',
       subtitle: 'Explora nuestra selección exclusiva de productos de alta gama.',
       ctaText: 'Ver Catálogo',
       ctaLink: '#productos'
-    }
-  ];
+  };
+
+  const slides = (config && config.headerSlides && config.headerSlides.length > 0) 
+    ? config.headerSlides 
+    : [defaultSlide];
 
   useEffect(() => {
     if (slides.length <= 1) return;
@@ -46,6 +50,9 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
       }
     }
   };
+
+  // Safe access to current slide
+  const activeSlide = slides[currentSlide] || defaultSlide;
 
   return (
     <section id="inicio" className="relative h-screen md:h-[95vh] bg-slate-950 overflow-hidden group">
@@ -80,22 +87,22 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
           </div>
           
           <h1 className="text-5xl md:text-8xl font-black text-white leading-[1.1] tracking-tighter drop-shadow-2xl font-heading animate-[fadeInLeft_0.8s_ease-out]">
-            {slides[currentSlide].title.split(' ').map((word, i) => (
+            {activeSlide.title.split(' ').map((word, i) => (
                 <span key={i} className={i % 2 !== 0 ? 'text-blue-500' : ''}>{word} </span>
             ))}
           </h1>
           
           <p className="text-slate-300 text-lg md:text-2xl max-w-xl drop-shadow-lg leading-relaxed font-medium animate-[fadeInLeft_1s_ease-out]">
-            {slides[currentSlide].subtitle}
+            {activeSlide.subtitle}
           </p>
           
           <div className="flex flex-col sm:flex-row gap-5 pt-8 animate-[fadeInUp_1.2s_ease-out]">
             <a
-              href={slides[currentSlide].ctaLink}
-              onClick={(e) => handleScrollTo(e, slides[currentSlide].ctaLink)}
+              href={activeSlide.ctaLink}
+              onClick={(e) => handleScrollTo(e, activeSlide.ctaLink)}
               className="group relative overflow-hidden text-center bg-blue-600 hover:bg-blue-500 text-white px-12 py-5 rounded-2xl font-black transition-all shadow-2xl shadow-blue-900/40 uppercase tracking-widest text-sm"
             >
-              <span className="relative z-10">{slides[currentSlide].ctaText}</span>
+              <span className="relative z-10">{activeSlide.ctaText}</span>
               <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
             </a>
             
