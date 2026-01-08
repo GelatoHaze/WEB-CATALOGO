@@ -9,6 +9,7 @@ interface ErrorBoundaryProps {
 
 interface ErrorBoundaryState {
   hasError: boolean;
+  error?: Error;
 }
 
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
@@ -24,7 +25,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   static getDerivedStateFromError(error: any): ErrorBoundaryState {
-    return { hasError: true };
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: any, errorInfo: any) {
@@ -34,12 +35,18 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white p-4 text-center">
-            <div>
-                <h1 className="text-3xl font-black text-blue-500 mb-4">Algo salió mal</h1>
-                <p className="text-slate-400">Por favor recarga la página o intenta más tarde.</p>
-                <button onClick={() => window.location.reload()} className="mt-6 px-6 py-3 bg-blue-600 rounded-xl font-bold uppercase text-xs tracking-widest hover:bg-blue-500">
-                    Recargar
+        <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white p-8 text-center z-[10000] relative">
+            <div className="max-w-lg bg-slate-900 border border-red-500/30 p-8 rounded-3xl shadow-2xl">
+                <h1 className="text-3xl font-black text-red-500 mb-4 uppercase tracking-tighter">Error Crítico</h1>
+                <p className="text-slate-400 mb-6 font-medium">La aplicación ha encontrado un problema inesperado.</p>
+                <div className="bg-slate-950 p-4 rounded-xl text-left mb-6 overflow-auto max-h-40 border border-slate-800">
+                    <code className="text-xs text-red-400 font-mono">{this.state.error?.message || 'Error desconocido'}</code>
+                </div>
+                <button onClick={() => {
+                    localStorage.clear();
+                    window.location.reload();
+                }} className="w-full px-6 py-4 bg-blue-600 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-500 shadow-lg shadow-blue-900/20 transition-all">
+                    Reiniciar Aplicación (Limpiar Caché)
                 </button>
             </div>
         </div>
@@ -63,3 +70,9 @@ root.render(
     </ErrorBoundary>
   </React.StrictMode>
 );
+
+// Señal de que React se ha montado correctamente
+// Esto asegura que el loader se quite justo cuando React arranca, no antes ni después.
+setTimeout(() => {
+    document.body.classList.add('ready');
+}, 500);

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>CBLLS - Innovación Premium</title>
     <meta name="description" content="Catálogo exclusivo de tecnología y electrodomésticos de alta gama." />
+    <!-- Tailwind CSS Script for Development/Runtime usage -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -54,19 +55,10 @@
         letter-spacing: -0.02em;
       }
 
-      .reveal {
-        opacity: 0;
-        transform: translateY(30px);
-        transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
-      }
-      .reveal.active {
-        opacity: 1;
-        transform: translateY(0);
-      }
-
       #root {
         padding-top: var(--sat);
         padding-bottom: var(--sab);
+        min-height: 100vh;
       }
 
       #initial-loader {
@@ -110,23 +102,16 @@
       .loading-progress {
         animation: loading-bar 2s ease-in-out infinite;
       }
-
-      .no-scrollbar::-webkit-scrollbar {
-        display: none;
-      }
-      .no-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-      }
     </style>
-  <script type="importmap">
+<script type="importmap">
 {
   "imports": {
-    "react/": "https://esm.sh/react@18.2.0/",
-    "react": "https://esm.sh/react@18.2.0",
-    "react-dom/": "https://esm.sh/react-dom@18.2.0/",
-    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-    "lucide-react": "https://esm.sh/lucide-react@0.294.0"
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "vite": "https://esm.sh/vite@^7.3.1"
   }
 }
 </script>
@@ -141,13 +126,12 @@
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
     <script>
-      function revealApp() {
-        if (!document.body.classList.contains('ready')) {
+      // Fallback de seguridad: Si React falla o tarda mucho, mostramos el body igual para ver errores
+      window.addEventListener('load', () => {
+        setTimeout(() => {
           document.body.classList.add('ready');
-        }
-      }
-      window.addEventListener('load', revealApp);
-      setTimeout(revealApp, 2500); 
+        }, 1500);
+      });
     </script>
   </body>
 </html>
