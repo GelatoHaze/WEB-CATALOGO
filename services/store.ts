@@ -72,21 +72,35 @@ export const StoreService = {
   // Suscripción a autenticación (Local/Session)
   subscribeToAuth: (callback: (user: User | null) => void) => {
     listeners.auth.push(callback);
-    const stored = localStorage.getItem(COLLECTIONS.USER);
-    callback(stored ? JSON.parse(stored) : null);
+    try {
+        const stored = localStorage.getItem(COLLECTIONS.USER);
+        callback(stored ? JSON.parse(stored) : null);
+    } catch (e) {
+        callback(null);
+    }
     return () => {
         listeners.auth = listeners.auth.filter(l => l !== callback);
     };
   },
 
   getConfig: (): AppConfig => {
-    const stored = localStorage.getItem(COLLECTIONS.CONFIG);
-    return stored ? JSON.parse(stored) : INITIAL_CONFIG;
+    try {
+        const stored = localStorage.getItem(COLLECTIONS.CONFIG);
+        return stored ? JSON.parse(stored) : INITIAL_CONFIG;
+    } catch (e) {
+        console.error("Error reading config", e);
+        return INITIAL_CONFIG;
+    }
   },
 
   getProducts: (): Product[] => {
-    const stored = localStorage.getItem(COLLECTIONS.PRODUCTS);
-    return stored ? JSON.parse(stored) : [];
+    try {
+        const stored = localStorage.getItem(COLLECTIONS.PRODUCTS);
+        return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+        console.error("Error reading products", e);
+        return [];
+    }
   },
 
   saveProduct: async (product: Product) => {
@@ -162,7 +176,11 @@ export const StoreService = {
   },
 
   refreshSession: async (): Promise<User | null> => {
-    const stored = localStorage.getItem(COLLECTIONS.USER);
-    return stored ? JSON.parse(stored) : null;
+    try {
+        const stored = localStorage.getItem(COLLECTIONS.USER);
+        return stored ? JSON.parse(stored) : null;
+    } catch (e) {
+        return null;
+    }
   }
 };
