@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
@@ -9,432 +10,263 @@ import Footer from './components/Footer';
 import AdminPanel from './components/AdminPanel';
 import { Product, AppConfig, User } from './types';
 import { StoreService } from './services/store';
-import { LogIn, UserPlus, Mail, Lock, User as UserIcon, X, AlertCircle, RefreshCw, Check, ArrowLeft, KeyRound } from 'lucide-react';
+import { X, AlertCircle, RefreshCw, Check, LogIn, UserPlus } from 'lucide-react';
 
-const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState('home'); // 'home' | 'admin'
-  const [isAuthModalOpen, setAuthModalOpen] = useState(false);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [config, setConfig] = useState<AppConfig>(StoreService.getConfig());
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+interface AuthModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  authMode: 'login' | 'register' | 'verification-check';
+  setAuthMode: (mode: 'login' | 'register' | 'verification-check') => void;
+  formData: any;
+  setFormData: (data: any) => void;
+  loading: boolean;
+  error: string;
+  success: string;
+  onSubmit: (e: React.FormEvent) => void;
+  onCheckVerification: () => void;
+  onLogout: () => void;
+  user: User | null;
+}
+
+const AuthModal: React.FC<AuthModalProps> = ({ 
+  isOpen, onClose, authMode, setAuthMode, formData, setFormData, 
+  loading, error, success, onSubmit, onCheckVerification, onLogout, user 
+}) => {
   
-  // Auth State
-  const [authMode, setAuthMode] = useState<'login' | 'register' | 'verification-check' | 'forgot-password'>('login');
-  const [authLoading, setAuthLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
-  });
-  const [loginError, setLoginError] = useState('');
-  const [loginSuccess, setLoginSuccess] = useState('');
-
-  // Initial Load & Auth Subscription
   useEffect(() => {
-    loadData();
-    // Subscribe to Firebase Auth State
-    const unsubscribe = StoreService.subscribeToAuth((currentUser) => {
-        setUser(currentUser);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const loadData = () => {
-    setLoading(true);
-    const loadedProducts = StoreService.getProducts();
-    const loadedConfig = StoreService.getConfig();
-    setProducts(loadedProducts);
-    setConfig(loadedConfig);
-    setTimeout(() => setLoading(false), 300);
-  };
-
-  useEffect(() => {
-    if (selectedCategory === 'all') {
-      setFilteredProducts(products);
+    if (isOpen) {
+        document.body.style.overflow = 'hidden';
     } else {
-      setFilteredProducts(products.filter(p => p.category === selectedCategory));
+        document.body.style.overflow = 'auto';
     }
-  }, [selectedCategory, products]);
+    return () => { document.body.style.overflow = 'auto'; };
+  }, [isOpen]);
 
-  const handleAuthSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError('');
-    setLoginSuccess('');
-    setAuthLoading(true);
+  if (!isOpen) return null;
 
-    if (authMode === 'login') {
-      const result = await StoreService.login(formData.email, formData.password);
+  return (
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-950/98 animate-in fade-in duration-200" onClick={onClose}></div>
       
-      if (result.success && result.user) {
-        setUser(result.user);
+      <div className="bg-slate-900 rounded-[2.5rem] border border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.8)] w-full max-w-md relative overflow-hidden animate-in zoom-in-95 duration-200 will-change-transform">
+        <button onClick={onClose} className="absolute top-8 right-8 text-slate-500 hover:text-white transition-colors z-20"><X className="w-6 h-6" /></button>
         
-        if (result.user.isVerified) {
-            if (result.user.role === 'admin') {
-                setCurrentView('admin');
-            }
-            setAuthModalOpen(false);
-            setFormData({ name: '', email: '', password: '', confirmPassword: '' });
-        } else {
-            // User logged in but not verified
-            setAuthMode('verification-check');
-        }
-      } else {
-        setLoginError(result.message || 'Error al iniciar sesión.');
-      }
-
-    } else if (authMode === 'register') {
-      if (formData.password !== formData.confirmPassword) {
-        setLoginError('Las contraseñas no coinciden.');
-        setAuthLoading(false);
-        return;
-      }
-      
-      if (formData.password.length < 6) {
-        setLoginError('La contraseña debe tener al menos 6 caracteres.');
-        setAuthLoading(false);
-        return;
-      }
-
-      const result = await StoreService.register(formData.name, formData.email, formData.password);
-      
-      if (result.success && result.user) {
-          setUser(result.user);
-          setAuthMode('verification-check');
-          setLoginSuccess(result.message || 'Verifica tu correo.');
-      } else {
-          setLoginError(result.message || 'Error en el registro.');
-      }
-    } else if (authMode === 'forgot-password') {
-        if (!formData.email) {
-            setLoginError('Por favor ingresa tu correo.');
-            setAuthLoading(false);
-            return;
-        }
-        const result = await StoreService.recoverPassword(formData.email);
-        if (result.success) {
-            setLoginSuccess(result.message);
-            // Optionally clear form or redirect to login after a delay, 
-            // but showing success message here is good UX.
-        } else {
-            setLoginError(result.message || 'Error al enviar correo de recuperación.');
-        }
-    }
-    setAuthLoading(false);
-  };
-
-  const handleCheckVerification = async () => {
-      setAuthLoading(true);
-      setLoginError('');
-      const updatedUser = await StoreService.refreshSession();
-      if (updatedUser) {
-          setUser(updatedUser);
-          if (updatedUser.isVerified) {
-              setAuthModalOpen(false);
-              setFormData({ name: '', email: '', password: '', confirmPassword: '' });
-              setAuthMode('login'); // Reset for next time
-              alert('¡Verificación exitosa! Acceso concedido.');
-          } else {
-              setLoginError('Aún no detectamos la verificación. Si ya hiciste clic en el enlace, espera unos segundos e intenta nuevamente.');
-          }
-      }
-      setAuthLoading(false);
-  };
-
-  const handleResendEmail = async () => {
-      setAuthLoading(true);
-      const res = await StoreService.resendVerification();
-      if (res.success) {
-          setLoginSuccess(res.message);
-      } else {
-          setLoginError(res.message);
-      }
-      setAuthLoading(false);
-  };
-
-  const handleLogout = async () => {
-    await StoreService.logout();
-    setUser(null);
-    setCurrentView('home');
-    setAuthModalOpen(false);
-  };
-
-  const openLogin = () => {
-    if (user) {
-        if (user.role === 'admin' && user.isVerified) {
-            setCurrentView('admin');
-        } else if (!user.isVerified) {
-            setAuthMode('verification-check');
-            setAuthModalOpen(true);
-        } else {
-            alert(`Hola ${user.name || 'Usuario'}, ya has iniciado sesión y estás verificado.`);
-        }
-    } else {
-        setAuthMode('login');
-        setAuthModalOpen(true);
-    }
-  };
-
-  const AuthModal = () => (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl w-full max-w-md relative overflow-hidden animate-fade-in-up">
-        <button 
-            onClick={() => setAuthModalOpen(false)}
-            className="absolute top-4 right-4 text-slate-500 hover:text-white z-20"
-        >
-            <X className="w-6 h-6" />
-        </button>
-
-        {/* Header / Tabs */}
-        {authMode !== 'verification-check' && authMode !== 'forgot-password' && (
-            <div className="flex text-center border-b border-slate-800">
-            <button 
-                onClick={() => { setAuthMode('login'); setLoginError(''); setLoginSuccess(''); }}
-                className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider transition-colors ${authMode === 'login' ? 'bg-slate-800/50 text-blue-400 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/30'}`}
-            >
-                Iniciar Sesión
-            </button>
-            <button 
-                onClick={() => { setAuthMode('register'); setLoginError(''); setLoginSuccess(''); }}
-                className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider transition-colors ${authMode === 'register' ? 'bg-slate-800/50 text-blue-400 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/30'}`}
-            >
-                Registrarse
-            </button>
+        {authMode !== 'verification-check' && (
+            <div className="flex border-b border-white/5">
+                <button onClick={() => setAuthMode('login')} className={`flex-1 py-6 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${authMode === 'login' ? 'bg-blue-600/10 text-blue-400 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-300'}`}>Entrar</button>
+                <button onClick={() => setAuthMode('register')} className={`flex-1 py-6 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${authMode === 'register' ? 'bg-blue-600/10 text-blue-400 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-300'}`}>Unirse</button>
             </div>
         )}
 
-        <div className="p-8">
-          <div className="text-center mb-8">
-            {authMode === 'verification-check' ? (
-                <>
-                    <div className="w-16 h-16 bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-4 text-amber-400 animate-pulse">
-                        <Mail className="w-8 h-8" />
-                    </div>
-                    <h2 className="text-2xl font-bold text-white mb-2">Verifica tu Correo</h2>
-                    <p className="text-slate-400 text-sm mb-4">
-                        Hemos enviado un enlace a <strong>{user?.email || formData.email}</strong>.
-                    </p>
-                    <p className="text-slate-500 text-xs bg-slate-800/50 p-3 rounded-lg border border-slate-800">
-                        Por favor revisa tu bandeja de entrada (y spam). Haz clic en el enlace y luego presiona el botón de abajo.
-                    </p>
-                </>
-            ) : authMode === 'forgot-password' ? (
-                <>
-                    <div className="w-16 h-16 bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-400">
-                        <KeyRound className="w-8 h-8" />
-                    </div>
-                    <h2 className="text-2xl font-bold text-white mb-2">Recuperar Contraseña</h2>
-                    <p className="text-slate-400 text-xs">
-                        Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.
-                    </p>
-                </>
-            ) : (
-                <>
-                    <h2 className="text-2xl font-bold text-white mb-2">
-                    {authMode === 'login' ? 'Bienvenido de nuevo' : 'Crear una cuenta'}
-                    </h2>
-                    <p className="text-slate-400 text-xs">
-                    {authMode === 'login' ? 'Ingresa para consultar precios.' : 'Únete para ofertas exclusivas.'}
-                    </p>
-                </>
-            )}
+        <div className="p-10 md:p-12">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-black text-white uppercase tracking-tighter leading-none mb-2">
+                {authMode === 'verification-check' ? 'Verificación' : authMode === 'login' ? 'Bienvenido' : 'Nueva Cuenta'}
+            </h2>
+            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">
+                {authMode === 'verification-check' ? 'Confirma tu identidad' : 'Acceso exclusivo CBLLS'}
+            </p>
           </div>
 
           {authMode !== 'verification-check' ? (
-            <form onSubmit={handleAuthSubmit} className="space-y-4">
+            <form onSubmit={onSubmit} className="space-y-4">
+                {authMode === 'register' && (
+                  <input type="text" placeholder="NOMBRE COMPLETO" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-950 border border-white/5 rounded-2xl px-6 py-5 text-white focus:border-blue-500 outline-none transition-all placeholder:text-slate-700 text-sm font-bold" required />
+                )}
+                <input type="email" placeholder="CORREO ELECTRÓNICO" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-slate-950 border border-white/5 rounded-2xl px-6 py-5 text-white focus:border-blue-500 outline-none transition-all placeholder:text-slate-700 text-sm font-bold" required />
+                <input type="password" placeholder="CONTRASEÑA" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full bg-slate-950 border border-white/5 rounded-2xl px-6 py-5 text-white focus:border-blue-500 outline-none transition-all placeholder:text-slate-700 text-sm font-bold" required />
                 
-                {authMode === 'register' && (
-                <div className="relative group">
-                    <UserIcon className="absolute left-3 top-3.5 w-5 h-5 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
-                    <input 
-                    type="text" 
-                    value={formData.name}
-                    onChange={e => setFormData({...formData, name: e.target.value})}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white focus:border-blue-500 focus:outline-none transition-colors placeholder:text-slate-600"
-                    placeholder="Nombre Completo"
-                    required
-                    />
-                </div>
+                {error && (
+                    <div className="flex items-center gap-2 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-500 text-[10px] font-black uppercase tracking-widest animate-pulse">
+                        <AlertCircle className="w-4 h-4" /> {error}
+                    </div>
                 )}
-
-                <div className="relative group">
-                <Mail className="absolute left-3 top-3.5 w-5 h-5 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
-                <input 
-                    type="email" 
-                    value={formData.email}
-                    onChange={e => setFormData({...formData, email: e.target.value})}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white focus:border-blue-500 focus:outline-none transition-colors placeholder:text-slate-600"
-                    placeholder="Correo Electrónico"
-                    required
-                />
-                </div>
-
-                {authMode !== 'forgot-password' && (
-                    <div className="relative group">
-                        <Lock className="absolute left-3 top-3.5 w-5 h-5 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
-                        <input 
-                            type="password" 
-                            value={formData.password}
-                            onChange={e => setFormData({...formData, password: e.target.value})}
-                            className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white focus:border-blue-500 focus:outline-none transition-colors placeholder:text-slate-600"
-                            placeholder="Contraseña"
-                            required
-                        />
+                {success && (
+                    <div className="flex items-center gap-2 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-500 text-[10px] font-black uppercase tracking-widest">
+                        <Check className="w-4 h-4" /> {success}
                     </div>
                 )}
 
-                {authMode === 'login' && (
-                    <div className="flex justify-end">
-                        <button 
-                            type="button"
-                            onClick={() => { setAuthMode('forgot-password'); setLoginError(''); setLoginSuccess(''); }}
-                            className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-                        >
-                            ¿Olvidaste tu contraseña?
-                        </button>
-                    </div>
-                )}
-
-                {authMode === 'register' && (
-                <div className="relative group">
-                    <Lock className="absolute left-3 top-3.5 w-5 h-5 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
-                    <input 
-                    type="password" 
-                    value={formData.confirmPassword}
-                    onChange={e => setFormData({...formData, confirmPassword: e.target.value})}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white focus:border-blue-500 focus:outline-none transition-colors placeholder:text-slate-600"
-                    placeholder="Confirmar Contraseña"
-                    required
-                    />
-                </div>
-                )}
-
-                {loginError && (
-                <div className="p-3 bg-red-900/20 border border-red-900/50 rounded-lg text-red-400 text-xs text-center flex items-center justify-center gap-2">
-                    <AlertCircle className="w-4 h-4" /> {loginError}
-                </div>
-                )}
-
-                {loginSuccess && (
-                <div className="p-3 bg-green-900/20 border border-green-900/50 rounded-lg text-green-400 text-xs text-center flex items-center justify-center gap-2">
-                    <Check className="w-4 h-4" /> {loginSuccess}
-                </div>
-                )}
-
-                <button 
-                    type="submit" 
-                    disabled={authLoading}
-                    className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white font-bold py-3 rounded-lg shadow-lg shadow-blue-900/20 transition-all transform active:scale-95 flex items-center justify-center gap-2"
-                >
-                {authLoading ? 'Procesando...' : (
-                    <>
-                    {authMode === 'login' ? <LogIn className="w-4 h-4" /> : 
-                     authMode === 'forgot-password' ? <Mail className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-                    {authMode === 'login' ? 'Ingresar' : 
-                     authMode === 'forgot-password' ? 'Enviar Correo' : 'Registrarse'}
-                    </>
-                )}
+                <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 py-5 rounded-2xl text-white font-black uppercase text-[10px] tracking-[0.3em] mt-6 transition-all shadow-xl shadow-blue-900/40 active:scale-95 flex items-center justify-center gap-3">
+                    {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : (authMode === 'login' ? <LogIn className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />)}
+                    {loading ? 'Procesando...' : (authMode === 'login' ? 'Acceder ahora' : 'Crear mi cuenta')}
                 </button>
-
-                {authMode === 'forgot-password' && (
-                    <button 
-                        type="button"
-                        onClick={() => { setAuthMode('login'); setLoginError(''); setLoginSuccess(''); }}
-                        className="w-full text-slate-500 hover:text-white text-sm py-2 transition-colors flex items-center justify-center gap-2"
-                    >
-                        <ArrowLeft className="w-4 h-4" /> Volver al inicio de sesión
-                    </button>
-                )}
             </form>
           ) : (
-            <div className="space-y-4">
-                {loginError && (
-                    <div className="p-3 bg-red-900/20 border border-red-900/50 rounded-lg text-red-400 text-xs text-center">
-                        {loginError}
-                    </div>
-                )}
-                {loginSuccess && (
-                    <div className="p-3 bg-green-900/20 border border-green-900/50 rounded-lg text-green-400 text-xs text-center">
-                        {loginSuccess}
-                    </div>
-                )}
-
-                <button 
-                    onClick={handleCheckVerification}
-                    disabled={authLoading}
-                    className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-green-900/20 transition-all transform active:scale-95 flex items-center justify-center gap-2"
-                >
-                    {authLoading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
-                    {authLoading ? 'Verificando...' : 'Ya verifiqué mi correo'}
+            <div className="text-center space-y-8">
+                <p className="text-slate-400 text-sm font-medium leading-relaxed">
+                    Hemos enviado un enlace a <br/><span className="text-white font-black">{user?.email}</span>. <br/>Revisa tu correo para continuar.
+                </p>
+                <button onClick={onCheckVerification} disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-500 py-5 rounded-2xl text-white font-black uppercase text-[10px] tracking-[0.3em] transition-all flex items-center justify-center gap-3">
+                    {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    Confirmar Verificación
                 </button>
-
-                <div className="flex justify-between pt-2">
-                    <button 
-                        onClick={handleResendEmail}
-                        disabled={authLoading}
-                        className="text-xs text-blue-400 hover:text-blue-300 underline disabled:opacity-50"
-                    >
-                        Reenviar correo
-                    </button>
-                    <button 
-                        onClick={handleLogout}
-                        className="text-xs text-slate-500 hover:text-slate-300"
-                    >
-                        Cerrar Sesión
-                    </button>
-                </div>
+                <button onClick={onLogout} className="text-slate-500 hover:text-white text-[10px] uppercase font-black tracking-[0.3em] transition-colors">Cerrar Sesión</button>
             </div>
           )}
         </div>
       </div>
     </div>
   );
+};
+
+const App: React.FC = () => {
+  const [isAdminView, setIsAdminView] = useState(false);
+  const [isAuthModalOpen, setAuthModalOpen] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [config, setConfig] = useState<AppConfig>(StoreService.getConfig());
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  
+  const [authMode, setAuthMode] = useState<'login' | 'register' | 'verification-check'>('login');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [formData, setFormData] = useState({ name: '', email: '', password: '' });
+  const [loginError, setLoginError] = useState('');
+  const [loginSuccess, setLoginSuccess] = useState('');
+
+  // 1. Suscripciones a Datos (Una sola vez al montar)
+  useEffect(() => {
+    const unsubProducts = StoreService.subscribeToProducts((updatedProducts) => {
+      setProducts(updatedProducts);
+      setLoading(false);
+    });
+
+    const unsubConfig = StoreService.subscribeToConfig((updatedConfig) => {
+      setConfig(updatedConfig);
+    });
+
+    const unsubAuth = StoreService.subscribeToAuth((u) => {
+        setUser(u);
+    });
+
+    return () => {
+      unsubProducts();
+      unsubConfig();
+      unsubAuth();
+    };
+  }, []);
+
+  // 2. Efecto para manejar el cierre automático del modal tras verificación
+  useEffect(() => {
+    if (user && (user.isVerified || user.role === 'admin') && authMode === 'verification-check') {
+        setAuthModalOpen(false);
+        setFormData({ name: '', email: '', password: '' });
+        setAuthMode('login'); // Resetear para la próxima
+    }
+  }, [user, authMode]);
+
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError(''); setAuthLoading(true);
+    if (authMode === 'login') {
+      const res = await StoreService.login(formData.email, formData.password);
+      if (res.success && res.user) {
+        // El useEffect de arriba cerrará el modal si está verificado
+        if (!res.user.isVerified && res.user.role !== 'admin') {
+            setAuthMode('verification-check');
+        }
+      } else {
+        setLoginError(res.message || 'Error de acceso');
+      }
+    } else {
+      const res = await StoreService.register(formData.name, formData.email, formData.password);
+      if (res.success) {
+        setAuthMode('verification-check');
+      } else {
+        setLoginError(res.message || 'Error en registro');
+      }
+    }
+    setAuthLoading(false);
+  };
+
+  const handleLogout = async () => {
+    await StoreService.logout();
+    setIsAdminView(false); 
+    setAuthModalOpen(false);
+  };
+
+  const filteredProducts = products.filter(p => {
+    const matchesCategory = selectedCategory === 'all' || p.category === selectedCategory;
+    const isVisible = p.isActive || (user?.role === 'admin');
+    return matchesCategory && isVisible;
+  });
+
+  const handleOpenAuth = () => {
+    setAuthMode('login');
+    setAuthModalOpen(true);
+  };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-blue-500 selection:text-white">
-      {isAuthModalOpen && <AuthModal />}
+    <div className="min-h-screen bg-slate-950 text-slate-200 selection:bg-blue-600/30">
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => {
+            setAuthModalOpen(false);
+            setLoginError('');
+            setLoginSuccess('');
+        }}
+        authMode={authMode} setAuthMode={setAuthMode}
+        formData={formData} setFormData={setFormData}
+        loading={authLoading} error={loginError} success={loginSuccess}
+        onSubmit={handleAuthSubmit} 
+        onCheckVerification={async () => {
+            setAuthLoading(true);
+            const u = await StoreService.refreshSession();
+            if (u?.isVerified) { 
+                // La actualización del usuario disparará el useEffect para cerrar
+            } else {
+                setLoginError('Verificación aún no detectada');
+            }
+            setAuthLoading(false);
+        }} 
+        onLogout={handleLogout} 
+        user={user}
+      />
       
-      {currentView === 'admin' && user?.role === 'admin' ? (
-        <AdminPanel onLogout={handleLogout} onDataChange={loadData} />
+      <Navbar 
+        config={config} user={user} 
+        onNavigate={handleOpenAuth} 
+        onLogout={handleLogout} 
+        onToggleAdmin={() => setIsAdminView(!isAdminView)} 
+        isAdminView={isAdminView}
+      />
+      
+      {isAdminView ? (
+        <div className="pt-32 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <AdminPanel onLogout={handleLogout} onDataChange={() => {}} />
+        </div>
       ) : (
         <>
-          <Navbar config={config} user={user} onNavigate={openLogin} />
           <Hero config={config} />
-          <main>
-            <Categories 
-                selectedCategory={selectedCategory} 
-                onSelectCategory={setSelectedCategory} 
-                categories={config.categories}
-            />
-            
-            <section id="productos" className="py-12 bg-slate-900/50 min-h-[500px]">
+          <main className="relative z-10">
+            <Categories selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} categories={config.categories} />
+            <section id="productos" className="py-24 bg-slate-900/20 border-y border-white/5">
               <div className="container mx-auto px-4">
-                <div className="flex items-center justify-between mb-8">
-                  <h3 className="text-2xl font-bold text-white">Catálogo de Productos</h3>
-                  <span className="text-slate-400 text-sm">{filteredProducts.length} resultados</span>
+                <div className="flex flex-col md:flex-row justify-between items-center mb-16 gap-6">
+                   <div className="text-center md:text-left">
+                     <h3 className="text-4xl font-black text-white uppercase tracking-tighter leading-none mb-3">Catálogo</h3>
+                     <p className="text-blue-500 font-black text-[10px] uppercase tracking-[0.4em]">Hardware de Vanguardia</p>
+                   </div>
+                   <div className="bg-slate-950/80 px-6 py-3 rounded-2xl border border-white/5 backdrop-blur-sm">
+                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{filteredProducts.length} Productos Disponibles</span>
+                   </div>
                 </div>
                 <Products 
                     products={filteredProducts} 
                     isLoading={loading} 
                     config={config} 
-                    user={user}
-                    onLoginReq={() => {
-                        if (user && !user.isVerified) {
-                            setAuthMode('verification-check');
-                        } else {
-                            setAuthMode('login');
-                        }
-                        setAuthModalOpen(true);
-                    }}
+                    user={user} 
+                    onLoginReq={handleOpenAuth} 
                 />
               </div>
             </section>
-
             <Features />
-            <Contact />
+            <Contact 
+              user={user} 
+              config={config} 
+              onLoginReq={handleOpenAuth} 
+            />
           </main>
           <Footer config={config} />
         </>

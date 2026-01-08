@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { MessageCircle, ChevronRight, ChevronLeft } from 'lucide-react';
+import { MessageCircle, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
 import { AppConfig } from '../types';
 
 interface HeroProps {
@@ -23,16 +24,32 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
     if (slides.length <= 1) return;
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 5000);
+    }, 6000);
     return () => clearInterval(interval);
   }, [slides.length]);
 
   const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % slides.length);
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
 
+  const handleScrollTo = (e: React.MouseEvent, id: string) => {
+    if (id.startsWith('#')) {
+      e.preventDefault();
+      const element = document.querySelector(id);
+      if (element) {
+        const offset = 80; // Altura aproximada de la Navbar
+        const elementPosition = element.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - offset;
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: 'smooth'
+        });
+      }
+    }
+  };
+
   return (
-    <section id="inicio" className="relative h-[85vh] md:h-[90vh] bg-slate-900 overflow-hidden group">
-      {/* Background Image Layer */}
+    <section id="inicio" className="relative h-screen md:h-[95vh] bg-slate-950 overflow-hidden group">
+      {/* Dynamic Background */}
       {slides.map((slide, index) => (
         <div 
           key={slide.id}
@@ -40,68 +57,86 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
             index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
           }`}
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-900/70 to-transparent z-10"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/40 to-transparent z-10"></div>
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent z-10"></div>
           <img
             src={slide.image}
             alt={slide.title}
-            className={`w-full h-full object-cover filter brightness-75 contrast-125 transition-transform duration-[10000ms] ${
-              index === currentSlide ? 'scale-110' : 'scale-100'
+            className={`w-full h-full object-cover filter brightness-50 contrast-125 transition-transform duration-[12000ms] ease-out ${
+              index === currentSlide ? 'scale-110 translate-x-4' : 'scale-100 translate-x-0'
             }`}
           />
         </div>
       ))}
 
-      {/* Content Layer */}
+      {/* Hero Content */}
       <div className="relative z-20 container mx-auto px-4 h-full flex items-center">
-        <div className="max-w-3xl space-y-8 animate-fade-in-up">
-          <h1 className="text-5xl md:text-7xl font-black text-white leading-tight drop-shadow-2xl font-heading">
-            {slides[currentSlide].title}
+        <div className="max-w-4xl space-y-6 md:space-y-10">
+          <div className="flex items-center gap-3 animate-fade-in-up">
+            <div className="h-px w-12 bg-blue-500"></div>
+            <span className="text-blue-500 font-black text-xs md:text-sm uppercase tracking-[0.5em] flex items-center gap-2">
+              <Sparkles className="w-4 h-4" /> Innovación Sin Límites
+            </span>
+          </div>
+          
+          <h1 className="text-5xl md:text-8xl font-black text-white leading-[1.1] tracking-tighter drop-shadow-2xl font-heading animate-[fadeInLeft_0.8s_ease-out]">
+            {slides[currentSlide].title.split(' ').map((word, i) => (
+                <span key={i} className={i % 2 !== 0 ? 'text-blue-500' : ''}>{word} </span>
+            ))}
           </h1>
-          <p className="text-slate-200 text-lg md:text-xl max-w-lg drop-shadow-lg leading-relaxed font-medium">
+          
+          <p className="text-slate-300 text-lg md:text-2xl max-w-xl drop-shadow-lg leading-relaxed font-medium animate-[fadeInLeft_1s_ease-out]">
             {slides[currentSlide].subtitle}
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 pt-4">
+          
+          <div className="flex flex-col sm:flex-row gap-5 pt-8 animate-[fadeInUp_1.2s_ease-out]">
             <a
               href={slides[currentSlide].ctaLink}
-              className="text-center bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-full font-bold transition-all transform hover:-translate-y-1 hover:shadow-[0_0_25px_rgba(37,99,235,0.4)] active:translate-y-0"
+              onClick={(e) => handleScrollTo(e, slides[currentSlide].ctaLink)}
+              className="group relative overflow-hidden text-center bg-blue-600 hover:bg-blue-500 text-white px-12 py-5 rounded-2xl font-black transition-all shadow-2xl shadow-blue-900/40 uppercase tracking-widest text-sm"
             >
-              {slides[currentSlide].ctaText}
+              <span className="relative z-10">{slides[currentSlide].ctaText}</span>
+              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
             </a>
-            <button className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-4 rounded-full font-bold transition-all transform hover:-translate-y-1 hover:shadow-[0_0_25px_rgba(16,185,129,0.4)] active:translate-y-0">
-              <MessageCircle className="w-5 h-5" />
+            
+            <button 
+              onClick={(e) => handleScrollTo(e, '#contacto')}
+              className="flex items-center justify-center gap-3 bg-slate-900/80 backdrop-blur-md border border-slate-800 hover:border-slate-700 text-white px-12 py-5 rounded-2xl font-black transition-all shadow-2xl uppercase tracking-widest text-sm active:scale-95 group"
+            >
+              <MessageCircle className="w-5 h-5 text-emerald-500 group-hover:scale-110 transition-transform" />
               Solicitar Cotización
             </button>
           </div>
         </div>
       </div>
 
-      {/* Navigation Arrows (Only if multiple slides) */}
+      {/* Navigation UI */}
       {slides.length > 1 && (
-        <>
+        <div className="absolute bottom-20 right-4 md:right-12 z-30 flex items-center gap-4">
           <button 
             onClick={prevSlide}
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-30 p-2 bg-black/30 hover:bg-black/50 text-white rounded-full backdrop-blur-sm transition-all hover:scale-110"
+            className="p-4 bg-slate-900/50 hover:bg-slate-900 border border-slate-800 text-white rounded-2xl backdrop-blur-md transition-all hover:-translate-y-1 active:translate-y-0"
           >
-            <ChevronLeft className="w-8 h-8" />
+            <ChevronLeft className="w-6 h-6" />
           </button>
+          <div className="h-px w-12 bg-slate-800"></div>
           <button 
             onClick={nextSlide}
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-30 p-2 bg-black/30 hover:bg-black/50 text-white rounded-full backdrop-blur-sm transition-all hover:scale-110"
+            className="p-4 bg-slate-900/50 hover:bg-slate-900 border border-slate-800 text-white rounded-2xl backdrop-blur-md transition-all hover:-translate-y-1 active:translate-y-0"
           >
-            <ChevronRight className="w-8 h-8" />
+            <ChevronRight className="w-6 h-6" />
           </button>
-        </>
+        </div>
       )}
 
-      {/* Decorative dots */}
-      <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-30 flex space-x-3">
+      {/* Side pagination indicators */}
+      <div className="absolute left-4 md:left-12 top-1/2 -translate-y-1/2 z-30 flex flex-col gap-6">
         {slides.map((_, idx) => (
           <button
             key={idx}
             onClick={() => setCurrentSlide(idx)}
-            className={`h-2 rounded-full transition-all duration-300 ${
-              idx === currentSlide ? 'w-8 bg-blue-500 shadow-lg shadow-blue-500/50' : 'w-2 bg-slate-600 hover:bg-slate-400'
+            className={`w-1 rounded-full transition-all duration-500 ${
+              idx === currentSlide ? 'h-16 bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)]' : 'h-4 bg-slate-800 hover:bg-slate-600'
             }`}
           ></button>
         ))}

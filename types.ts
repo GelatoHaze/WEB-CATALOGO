@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export interface Variant {
@@ -17,20 +18,21 @@ export interface Variant {
 export interface Product {
   id: number;
   name: string;
-  category: string; // This stores the category ID
-  price: number; // Kept for internal logic/sorting but hidden from UI
-  image: string; // Main display image
+  category: string; 
+  price: number; 
+  image: string; 
   description: string;
-  features?: string[]; // New: List of main highlights/specs
+  features?: string[];
   isNew?: boolean;
-  stock: number; // Total stock (sum of variants) or fallback
-  variants: Variant[]; // List of variants
+  isActive: boolean; // Control de visibilidad
+  stock: number; 
+  variants: Variant[];
 }
 
 export interface Category {
   id: string;
   name: string;
-  icon: string; // Changed from React.ReactNode to string for JSON storage (e.g., 'smartphone', 'tv')
+  icon: string;
 }
 
 export interface HeaderSlide {
@@ -51,10 +53,10 @@ export interface AppConfig {
   email: string;
   address: string;
   phoneDisplay: string;
-  generalInfo?: string; // Editable general text
-  footerText?: string; // New: Editable copyright/year text
+  generalInfo?: string; 
+  footerText?: string; 
   headerSlides: HeaderSlide[];
-  categories: Category[]; // Dynamic categories list
+  categories: Category[];
 }
 
 export interface User {

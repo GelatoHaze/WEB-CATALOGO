@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { Product, AppConfig, User } from '../types';
-import { ShoppingCart, AlertCircle, Eye } from 'lucide-react';
+import { ShoppingCart, AlertCircle, Eye, Star } from 'lucide-react';
 import ProductDetailModal from './ProductDetailModal';
 
 interface ProductsProps {
@@ -16,19 +17,22 @@ const Products: React.FC<ProductsProps> = ({ products, isLoading, config, user, 
 
   if (isLoading) {
     return (
-      <div className="py-20 text-center text-slate-500">
-        <p>Cargando inventario...</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="bg-slate-900/50 rounded-3xl border border-slate-800 h-96 animate-pulse"></div>
+        ))}
       </div>
     );
   }
 
   if (products.length === 0) {
     return (
-      <div className="col-span-full text-center py-20 bg-slate-900/50 rounded-xl border border-slate-800 border-dashed">
-        <div className="mx-auto w-16 h-16 text-slate-600 mb-4 bg-slate-800 rounded-full flex items-center justify-center">
-          <AlertCircle className="w-8 h-8" />
+      <div className="col-span-full flex flex-col items-center justify-center py-32 bg-slate-900/20 rounded-[3rem] border-2 border-slate-800 border-dashed animate-fade-in">
+        <div className="w-24 h-24 bg-slate-900 rounded-full flex items-center justify-center mb-6 border border-slate-800">
+          <AlertCircle className="w-10 h-10 text-slate-700" />
         </div>
-        <p className="text-slate-400 text-lg font-medium">No hay productos disponibles.</p>
+        <h4 className="text-xl font-black text-white mb-2 tracking-tight uppercase">Sin resultados</h4>
+        <p className="text-slate-500 text-sm max-w-xs text-center">No encontramos productos en esta categoría. Intenta seleccionar otra.</p>
       </div>
     );
   }
@@ -37,36 +41,35 @@ const Products: React.FC<ProductsProps> = ({ products, isLoading, config, user, 
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
         {products.map((product) => {
-          // Calculate total stock if variants exist, otherwise use base stock
           const totalStock = product.variants && product.variants.length > 0
             ? product.variants.reduce((acc, v) => acc + v.stock, 0)
             : product.stock;
-            
           const hasStock = totalStock > 0;
           const lowStock = hasStock && totalStock <= 5;
 
           return (
             <div 
               key={product.id} 
-              className={`bg-slate-900 rounded-2xl overflow-hidden border transition-all duration-300 flex flex-col group cursor-pointer
-                ${hasStock ? 'border-slate-800 hover:border-blue-500/50 hover:shadow-[0_10px_40px_-10px_rgba(37,99,235,0.2)]' : 'border-slate-800 opacity-75 grayscale'}`}
+              className={`group bg-slate-900 rounded-[2rem] overflow-hidden border transition-all duration-500 flex flex-col h-full relative
+                ${hasStock ? 'border-slate-800 hover:border-blue-500/30 hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)]' : 'border-slate-800 opacity-60 grayscale'}`}
               onClick={() => setSelectedProduct(product)}
             >
-              <div className="relative aspect-square overflow-hidden bg-white">
+              {/* Image Section */}
+              <div className="relative aspect-[4/5] bg-white overflow-hidden flex items-center justify-center cursor-pointer">
                 {/* Badges */}
-                <div className="absolute top-3 left-3 z-10 flex flex-col gap-2 items-start">
+                <div className="absolute top-5 left-5 z-10 flex flex-col gap-2 pointer-events-none">
                   {product.isNew && hasStock && (
-                    <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide shadow-md">
-                      Nuevo
+                    <span className="bg-blue-600 text-white text-[9px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest shadow-xl flex items-center gap-1">
+                      <Star className="w-3 h-3 fill-white" /> Nuevo
                     </span>
                   )}
                   {!hasStock && (
-                    <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide shadow-md">
+                    <span className="bg-red-600/90 backdrop-blur-md text-white text-[9px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest shadow-xl">
                       Sin Stock
                     </span>
                   )}
                   {lowStock && (
-                    <span className="bg-amber-500 text-slate-900 text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide shadow-md">
+                    <span className="bg-amber-500 text-slate-950 text-[9px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest shadow-xl">
                       ¡Últimas {totalStock}!
                     </span>
                   )}
@@ -75,54 +78,60 @@ const Products: React.FC<ProductsProps> = ({ products, isLoading, config, user, 
                 <img
                   src={product.image}
                   alt={product.name}
-                  className="w-full h-full object-contain p-6 group-hover:scale-110 transition-transform duration-500"
+                  className="w-full h-full object-contain p-10 group-hover:scale-105 transition-transform duration-700"
                 />
                 
-                {/* Quick action overlay */}
-                <div className="absolute inset-0 bg-slate-950/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                    <button 
-                      className="bg-white/90 backdrop-blur text-slate-900 font-bold px-6 py-2 rounded-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 shadow-lg hover:bg-white flex items-center gap-2"
-                    >
-                        <Eye className="w-4 h-4 text-blue-600" /> Ver Detalles
+                {/* Visual Overlay */}
+                <div className="absolute inset-0 bg-slate-950/0 group-hover:bg-slate-950/30 transition-all duration-500 flex items-center justify-center">
+                    <button className="bg-white text-slate-950 font-black px-8 py-3 rounded-2xl transform translate-y-10 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-500 shadow-2xl flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                        <Eye className="w-4 h-4 text-blue-600" /> Detalles
                     </button>
                 </div>
               </div>
 
-              <div className="p-6 flex flex-col flex-grow">
-                <div className="text-xs text-blue-400 font-bold uppercase mb-2 tracking-wide">{product.category}</div>
-                <h3 className="text-lg font-bold text-white mb-2 leading-tight group-hover:text-blue-400 transition-colors">
+              {/* Info Section */}
+              <div className="p-8 flex flex-col flex-grow">
+                <div className="text-[9px] text-blue-500 font-black uppercase mb-3 tracking-[0.2em]">
+                    {config.categories.find(c => c.id === product.category)?.name || 'General'}
+                </div>
+                
+                <h3 className="text-xl font-bold text-white mb-4 leading-tight group-hover:text-blue-400 transition-colors line-clamp-2 h-14">
                   {product.name}
                 </h3>
-                {/* Product features preview */}
-                {product.features && product.features.length > 0 ? (
-                  <ul className="text-slate-400 text-xs mb-4 space-y-1">
-                    {product.features.slice(0, 2).map((feature, i) => (
-                      <li key={i} className="flex items-center gap-1.5">
-                        <span className="w-1 h-1 rounded-full bg-blue-500"></span>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-slate-400 text-sm line-clamp-2 mb-4 flex-grow">
-                    {product.description}
-                  </p>
-                )}
                 
-                <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-800">
+                <div className="flex-grow">
+                    {product.features && product.features.length > 0 ? (
+                      <ul className="text-slate-500 text-[11px] font-medium space-y-2 mb-6">
+                        {product.features.slice(0, 3).map((feature, i) => (
+                          <li key={i} className="flex items-center gap-2">
+                            <div className="w-1 h-1 rounded-full bg-blue-600 flex-shrink-0"></div>
+                            <span className="truncate">{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-slate-500 text-xs line-clamp-3 mb-6 font-medium italic">
+                        {product.description}
+                      </p>
+                    )}
+                </div>
+                
+                <div className="flex items-center justify-between pt-6 border-t border-slate-800/50 mt-auto">
                   <div className="flex flex-col">
-                    <span className="text-xs text-slate-500 font-medium">Consultar Precio</span>
-                    <span className="text-sm text-blue-400 font-bold">Ver disponibilidad &rarr;</span>
+                    <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Status</span>
+                    <span className={`text-[11px] font-bold uppercase tracking-wider ${hasStock ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {hasStock ? 'Disponible' : 'Agotado'}
+                    </span>
                   </div>
                   
                   <button 
-                    className={`p-3 rounded-xl transition-colors group/btn ${
+                    className={`p-4 rounded-2xl transition-all shadow-xl group/btn ${
                       hasStock 
-                        ? 'bg-slate-800 hover:bg-blue-600 text-white' 
-                        : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                        ? 'bg-slate-800 hover:bg-blue-600 text-white shadow-slate-950' 
+                        : 'bg-slate-800/50 text-slate-600 cursor-not-allowed'
                     }`}
                   >
-                    <ShoppingCart className={`w-5 h-5 ${hasStock ? 'group-hover/btn:scale-110 transition-transform' : ''}`} />
+                    <ShoppingCart className={`w-5 h-5 ${hasStock ? 'group-hover/btn:scale-110' : ''}`} />
                   </button>
                 </div>
               </div>
