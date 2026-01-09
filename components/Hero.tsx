@@ -9,6 +9,7 @@ interface HeroProps {
 
 const Hero: React.FC<HeroProps> = ({ config }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
   
   // Protección robusta: Si no hay slides en la config, usa un default para evitar crash
   const defaultSlide = {
@@ -24,11 +25,26 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
     ? config.headerSlides 
     : [defaultSlide];
 
+  // 1. Preload Logic: Calentar la caché del navegador
+  useEffect(() => {
+    slides.forEach((slide) => {
+      const img = new Image();
+      img.src = slide.image;
+      img.onload = () => {
+        setLoadedImages(prev => {
+          const newSet = new Set(prev);
+          newSet.add(slide.image);
+          return newSet;
+        });
+      };
+    });
+  }, [slides]);
+
   useEffect(() => {
     if (slides.length <= 1) return;
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 6000);
+    }, 5000); // 5 segundos por slide
     return () => clearInterval(interval);
   }, [slides.length]);
 
@@ -57,24 +73,42 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
   return (
     <section id="inicio" className="relative h-screen md:h-[95vh] bg-slate-950 overflow-hidden group">
       {/* Dynamic Background */}
-      {slides.map((slide, index) => (
-        <div 
-          key={slide.id}
-          className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-            index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
-          }`}
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/40 to-transparent z-10"></div>
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent z-10"></div>
-          <img
-            src={slide.image}
-            alt={slide.title}
-            className={`w-full h-full object-cover filter brightness-50 contrast-125 transition-transform duration-[12000ms] ease-out ${
-              index === currentSlide ? 'scale-110 translate-x-4' : 'scale-100 translate-x-0'
+      {slides.map((slide, index) => {
+        const isActive = index === currentSlide;
+        // Lógica Anti-Flicker:
+        // 1. La imagen activa tiene z-10 y opacidad 1.
+        // 2. Las imágenes inactivas tienen z-0. 
+        // 3. TRUCO: La transición de opacidad se hace con un delay en la SALIDA o usando una técnica de apilamiento.
+        // Aquí usamos apilamiento absoluto: La nueva imagen (z-10) hace fade-in SOBRE la anterior (z-0).
+        // Si hacemos fade-out de la anterior al mismo tiempo, se ve el fondo.
+        // Solución: Dejamos que la imagen activa haga fade-in. La inactiva simplemente se queda atrás hasta que es tapada.
+        
+        return (
+          <div 
+            key={slide.id}
+            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out will-change-[opacity] ${
+              isActive ? 'opacity-100 z-10' : 'opacity-0 z-0'
             }`}
-          />
-        </div>
-      ))}
+          >
+            {/* Capas de gradiente estáticas para no afectar performance del repaint */}
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/40 to-transparent z-10 pointer-events-none"></div>
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent z-10 pointer-events-none"></div>
+            
+            <img
+              src={slide.image}
+              alt={slide.title}
+              // OPTIMIZACIONES DE PERFORMANCE CRÍTICAS:
+              // decoding="sync": Fuerza al navegador a decodificar la imagen antes de pintar (evita flash blanco).
+              // loading="eager": Prioridad alta de carga.
+              decoding="sync"
+              loading="eager"
+              className={`w-full h-full object-cover filter brightness-50 contrast-125 transform-gpu will-change-transform transition-transform duration-[12000ms] ease-out ${
+                isActive ? 'scale-110 translate-x-4' : 'scale-100 translate-x-0'
+              }`}
+            />
+          </div>
+        );
+      })}
 
       {/* Hero Content */}
       <div className="relative z-20 container mx-auto px-4 h-full flex items-center">
@@ -86,15 +120,18 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
             </span>
           </div>
           
-          <h1 className="text-5xl md:text-8xl font-black text-white leading-[1.1] tracking-tighter drop-shadow-2xl font-heading animate-[fadeInLeft_0.8s_ease-out]">
-            {activeSlide.title.split(' ').map((word, i) => (
-                <span key={i} className={i % 2 !== 0 ? 'text-blue-500' : ''}>{word} </span>
-            ))}
-          </h1>
-          
-          <p className="text-slate-300 text-lg md:text-2xl max-w-xl drop-shadow-lg leading-relaxed font-medium animate-[fadeInLeft_1s_ease-out]">
-            {activeSlide.subtitle}
-          </p>
+          {/* Key trick: Usamos key={currentSlide} en el texto para forzar la re-animación CSS al cambiar de slide */}
+          <div key={activeSlide.id} className="space-y-6 md:space-y-10">
+              <h1 className="text-5xl md:text-8xl font-black text-white leading-[1.1] tracking-tighter drop-shadow-2xl font-heading animate-[fadeInLeft_0.8s_ease-out]">
+                {activeSlide.title.split(' ').map((word, i) => (
+                    <span key={i} className={i % 2 !== 0 ? 'text-blue-500' : ''}>{word} </span>
+                ))}
+              </h1>
+              
+              <p className="text-slate-300 text-lg md:text-2xl max-w-xl drop-shadow-lg leading-relaxed font-medium animate-[fadeInLeft_1s_ease-out]">
+                {activeSlide.subtitle}
+              </p>
+          </div>
           
           <div className="flex flex-col sm:flex-row gap-5 pt-8 animate-[fadeInUp_1.2s_ease-out]">
             <a

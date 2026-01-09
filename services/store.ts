@@ -28,6 +28,30 @@ const INITIAL_CONFIG: AppConfig = {
       subtitle: 'La mejor tecnología en tus manos.',
       ctaText: 'Ver Catálogo',
       ctaLink: '#productos'
+    },
+    {
+      id: 'slide2',
+      image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=2000&auto=format&fit=crop',
+      title: 'Móviles Premium',
+      subtitle: 'Diseño y potencia sin compromisos.',
+      ctaText: 'Ver Móviles',
+      ctaLink: '#productos'
+    },
+    {
+      id: 'slide3',
+      image: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?q=80&w=2000&auto=format&fit=crop',
+      title: 'Hogar Inteligente',
+      subtitle: 'Conecta tu vida con la última generación.',
+      ctaText: 'Ver Hogar',
+      ctaLink: '#productos'
+    },
+    {
+      id: 'slide4',
+      image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=2000&auto=format&fit=crop',
+      title: 'Audio High-Fidelity',
+      subtitle: 'Siente cada nota con nuestra colección de audio.',
+      ctaText: 'Ver Audio',
+      ctaLink: '#productos'
     }
   ],
   categories: [
@@ -48,6 +72,23 @@ const listeners = {
 
 const notify = (type: 'products' | 'config' | 'auth', data: any) => {
     listeners[type].forEach(l => l(data));
+};
+
+// Helper para manejar errores de almacenamiento
+const safeSetItem = (key: string, value: any) => {
+    try {
+        const stringValue = JSON.stringify(value);
+        localStorage.setItem(key, stringValue);
+        return true;
+    } catch (e: any) {
+        if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+            console.error("LocalStorage Quota Exceeded");
+            alert("⚠️ ¡Espacio Lleno! Las imágenes son muy pesadas para el almacenamiento local. Intenta usar imágenes externas (URL) o reduce su calidad.");
+            throw new Error("QUOTA_EXCEEDED");
+        }
+        console.error("Storage Error", e);
+        return false;
+    }
 };
 
 export const StoreService = {
@@ -88,8 +129,6 @@ export const StoreService = {
         const stored = localStorage.getItem(COLLECTIONS.CONFIG);
         const parsed = stored ? JSON.parse(stored) : {};
         
-        // Merge defensivo: Usa los datos guardados, pero si falta alguna propiedad crítica (como array de categorías),
-        // rellénala con la configuración inicial para evitar crasheos.
         return {
             ...INITIAL_CONFIG,
             ...parsed,
@@ -102,7 +141,6 @@ export const StoreService = {
         };
     } catch (e) {
         console.error("Error reading config, reverting to default", e);
-        // Si hay error grave, limpiamos para recuperar la app
         localStorage.removeItem(COLLECTIONS.CONFIG);
         return INITIAL_CONFIG;
     }
@@ -136,39 +174,45 @@ export const StoreService = {
         products.push(product);
     }
     
-    localStorage.setItem(COLLECTIONS.PRODUCTS, JSON.stringify(products));
-    notify('products', products);
-    return product;
+    // Usamos el helper seguro
+    if (safeSetItem(COLLECTIONS.PRODUCTS, products)) {
+        notify('products', products);
+        return product;
+    } else {
+        throw new Error("No se pudo guardar el producto");
+    }
   },
 
   deleteProduct: async (id: number) => {
     const products = StoreService.getProducts().filter(p => p.id !== id);
-    localStorage.setItem(COLLECTIONS.PRODUCTS, JSON.stringify(products));
+    safeSetItem(COLLECTIONS.PRODUCTS, products);
     notify('products', products);
   },
 
   saveConfig: async (config: AppConfig) => {
-    localStorage.setItem(COLLECTIONS.CONFIG, JSON.stringify(config));
-    notify('config', config);
-    return config;
+    // Usamos el helper seguro
+    if (safeSetItem(COLLECTIONS.CONFIG, config)) {
+        notify('config', config);
+        return config;
+    } else {
+        throw new Error("No se pudo guardar la configuración");
+    }
   },
 
   login: async (email: string, pass: string): Promise<{ success: boolean; user?: User; message?: string }> => {
-    // Simulación de login
     if (pass.length < 6) return { success: false, message: 'Contraseña muy corta (min 6).' };
     
-    // Admin Hardcodeado para pruebas (nahiceballos@gmail.com)
     const isAdmin = email.toLowerCase() === 'nahiceballos@gmail.com';
     
     const user: User = {
         uid: 'local-' + Date.now(),
         email,
         name: email.split('@')[0],
-        isVerified: true, // Auto verificar en local
+        isVerified: true, 
         role: isAdmin ? 'admin' : 'client'
     };
     
-    localStorage.setItem(COLLECTIONS.USER, JSON.stringify(user));
+    safeSetItem(COLLECTIONS.USER, user);
     notify('auth', user);
     return { success: true, user };
   },
@@ -181,7 +225,7 @@ export const StoreService = {
         isVerified: true,
         role: 'client'
     };
-    localStorage.setItem(COLLECTIONS.USER, JSON.stringify(user));
+    safeSetItem(COLLECTIONS.USER, user);
     notify('auth', user);
     return { success: true, user };
   },

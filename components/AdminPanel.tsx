@@ -70,7 +70,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
       return;
     }
     const newSlide: HeaderSlide = {
-      id: Date.now().toString(),
+      // Usar random para asegurar ID único
+      id: Date.now().toString() + Math.random().toString().slice(2),
       image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2670&auto=format&fit=crop',
       title: 'Nuevo Banner',
       subtitle: 'Descripción del banner',

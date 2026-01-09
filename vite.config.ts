@@ -8,6 +8,14 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
     minify: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          icons: ['lucide-react'],
+        },
+      },
+    },
   },
   server: {
     port: 3000,
