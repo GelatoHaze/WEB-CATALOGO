@@ -171,6 +171,35 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
     }
   };
 
+  // --- NUEVA LÓGICA DE CATEGORÍAS ---
+  const handleAddCategory = () => {
+    const newCat: Category = {
+        id: 'cat-' + Date.now(),
+        name: 'Nueva Colección',
+        icon: 'smartphone'
+    };
+    setConfig({...config, categories: [...config.categories, newCat]});
+  };
+
+  const handleRemoveCategory = (index: number) => {
+    if (config.categories.length <= 1) {
+        alert("Debes mantener al menos una categoría.");
+        return;
+    }
+    if (window.confirm("¿Estás seguro de eliminar esta categoría? Los productos asignados podrían quedar sin clasificación.")) {
+        const newCats = [...config.categories];
+        newCats.splice(index, 1);
+        setConfig({...config, categories: newCats});
+    }
+  };
+
+  const updateCategory = (index: number, field: keyof Category, value: string) => {
+    const newCats = [...config.categories];
+    newCats[index] = { ...newCats[index], [field]: value };
+    setConfig({...config, categories: newCats});
+  };
+  // ----------------------------------
+
   return (
     <div className="container mx-auto px-4 max-w-7xl">
       <div className="flex flex-col lg:flex-row gap-12">
@@ -285,6 +314,62 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
                   </div>
                 </form>
               )}
+            </div>
+          )}
+
+          {activeTab === 'categories' && (
+            <div className="space-y-10 animate-fade-in">
+              <div className="flex justify-between items-center">
+                <div className="space-y-1">
+                    <h3 className="text-2xl font-black text-white">Categorías del Catálogo</h3>
+                    <p className="text-slate-500 text-xs">Gestiona las secciones de tu tienda.</p>
+                </div>
+                <button onClick={handleAddCategory} className="bg-blue-600 px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest text-white hover:bg-blue-500 flex items-center gap-2 shadow-lg shadow-blue-900/20">
+                   <Plus className="w-4 h-4" /> Añadir Categoría
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {config.categories.map((cat, idx) => (
+                    <div key={cat.id || idx} className="bg-slate-950 p-6 rounded-3xl border border-slate-800 flex items-start gap-4 group hover:border-blue-500/30 transition-all relative">
+                        <div className="absolute top-4 right-4">
+                            <button onClick={() => handleRemoveCategory(idx)} className="p-2 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors">
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        </div>
+                        
+                        <div className="space-y-4 flex-grow pr-10">
+                            <div className="space-y-2">
+                                <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Nombre Visible</label>
+                                <input 
+                                    type="text" 
+                                    value={cat.name} 
+                                    onChange={(e) => updateCategory(idx, 'name', e.target.value)} 
+                                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white font-bold text-sm focus:border-blue-500 outline-none" 
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Icono Representativo</label>
+                                <select 
+                                    value={cat.icon} 
+                                    onChange={(e) => updateCategory(idx, 'icon', e.target.value)}
+                                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs outline-none"
+                                >
+                                    {['smartphone', 'coffee', 'tv', 'refrigerator', 'laptop', 'watch', 'headphones', 'camera', 'home', 'gamepad', 'shirt', 'car', 'music'].map(i => (
+                                        <option key={i} value={i}>{i.toUpperCase()}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+              </div>
+
+              <div className="pt-10 flex justify-center">
+                <button onClick={handleSaveConfig} disabled={saving} className="bg-emerald-600 px-12 py-5 rounded-2xl font-black text-white uppercase text-xs tracking-[0.2em] shadow-xl shadow-emerald-900/40 transition-all hover:bg-emerald-500 flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5" /> Guardar Cambios
+                </button>
+              </div>
             </div>
           )}
 
