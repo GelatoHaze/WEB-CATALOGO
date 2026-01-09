@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Product, AppConfig, Variant, HeaderSlide, Category } from '../types';
 import { StoreService } from '../services/store';
-import { Save, Trash2, Plus, Edit, Settings, Package, LogOut, LayoutTemplate, Image as ImageIcon, X, Upload, List, Smartphone, Coffee, Tv, Laptop, Watch, Camera, Headphones, DollarSign, Layers, Eye, EyeOff, CheckCircle, Sparkles, RefreshCw, Monitor } from 'lucide-react';
+import { Save, Trash2, Plus, Edit, Settings, Package, LogOut, LayoutTemplate, Image as ImageIcon, X, Upload, List, Smartphone, Coffee, Tv, Laptop, Watch, Camera, Headphones, DollarSign, Layers, Eye, EyeOff, CheckCircle, Sparkles, RefreshCw, Monitor, AlertTriangle } from 'lucide-react';
 
 interface AdminPanelProps {
   onLogout: () => void;
@@ -15,6 +15,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
   const [config, setConfig] = useState<AppConfig>(StoreService.getConfig());
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [saving, setSaving] = useState(false);
+  const [processingImage, setProcessingImage] = useState(false);
   
   const productFileRef = useRef<HTMLInputElement>(null);
   const bannerFileRef = useRef<HTMLInputElement>(null);
@@ -26,6 +27,39 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
     const unsubConfig = StoreService.subscribeToConfig(setConfig);
     return () => { unsub(); unsubConfig(); };
   }, []);
+
+  // Función utilitaria para comprimir imágenes y evitar llenar el LocalStorage
+  const compressImage = (file: File, maxWidth: number = 1280): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Redimensionar si es muy grande
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Exportar como JPEG con calidad reducida (0.7)
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
+        };
+        img.onerror = (err) => reject(err);
+      };
+      reader.onerror = (err) => reject(err);
+    });
+  };
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +92,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
       await StoreService.saveConfig(config);
       alert('¡Ajustes sincronizados globalmente!');
     } catch (err) {
-      alert("Error al sincronizar");
+      alert("Error al sincronizar. Es probable que las imágenes ocupen demasiado espacio.");
     } finally {
       setSaving(false);
     }
@@ -82,7 +116,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
   };
 
   const handleRemoveBanner = (index: number) => {
-    if (config.headerSlides.length <= 1) return;
+    if (config.headerSlides.length <= 1) {
+        alert("Debes tener al menos un banner.");
+        return;
+    }
     const updatedSlides = config.headerSlides.filter((_, i) => i !== index);
     setConfig({...config, headerSlides: updatedSlides});
   };
@@ -90,6 +127,42 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
   const updateSlide = (index: number, data: Partial<HeaderSlide>) => {
     const updatedSlides = config.headerSlides.map((slide, i) => i === index ? {...slide, ...data} : slide);
     setConfig({...config, headerSlides: updatedSlides});
+  };
+
+  const handleProductImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && editingProduct) {
+        setProcessingImage(true);
+        try {
+            const compressedBase64 = await compressImage(file, 800); // 800px max para productos
+            setEditingProduct({...editingProduct, image: compressedBase64});
+        } catch (error) {
+            console.error(error);
+            alert("Error al procesar la imagen");
+        } finally {
+            setProcessingImage(false);
+            e.target.value = ''; // Reset input
+        }
+    }
+  };
+
+  const handleBannerImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && activeBannerIndex !== null) {
+        setProcessingImage(true);
+        try {
+            // 1600px max para banners, suficiente para web y mobile
+            const compressedBase64 = await compressImage(file, 1600);
+            updateSlide(activeBannerIndex, {image: compressedBase64});
+            setActiveBannerIndex(null);
+        } catch (error) {
+            console.error(error);
+            alert("Error al procesar la imagen");
+        } finally {
+            setProcessingImage(false);
+            e.target.value = ''; // Reset input
+        }
+    }
   };
 
   return (
@@ -113,9 +186,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
         </aside>
 
         <main className="flex-grow bg-slate-900/50 rounded-[2rem] border border-slate-800 p-8 md:p-12 min-h-[600px] relative">
-          {saving && (
-            <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px] z-50 flex items-center justify-center rounded-[2rem]">
-              <RefreshCw className="w-10 h-10 text-blue-500 animate-spin" />
+          {(saving || processingImage) && (
+            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-[2rem]">
+              <RefreshCw className="w-12 h-12 text-blue-500 animate-spin mb-4" />
+              <span className="text-white font-black uppercase tracking-widest text-sm">
+                {processingImage ? 'Optimizando Imagen...' : 'Guardando Cambios...'}
+              </span>
             </div>
           )}
 
@@ -183,18 +259,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
                     <div className="space-y-6">
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Imagen Principal</label>
-                            <div className="aspect-video bg-white rounded-3xl border border-slate-800 overflow-hidden relative flex items-center justify-center">
+                            <div className="aspect-video bg-white rounded-3xl border border-slate-800 overflow-hidden relative flex items-center justify-center group">
                                 {editingProduct.image ? <img src={editingProduct.image} className="max-h-full p-4 object-contain" /> : <ImageIcon className="w-12 h-12 text-slate-300" />}
-                                <button type="button" onClick={() => productFileRef.current?.click()} className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold text-xs uppercase">Cambiar Imagen</button>
-                                <input type="file" ref={productFileRef} className="hidden" accept="image/*" onChange={e => {
-                                    const file = e.target.files?.[0];
-                                    if(file) {
-                                        const r = new FileReader();
-                                        r.onload = () => setEditingProduct({...editingProduct, image: r.result as string});
-                                        r.readAsDataURL(file);
-                                    }
-                                }} />
+                                <button type="button" onClick={() => productFileRef.current?.click()} className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold text-xs uppercase cursor-pointer z-10">Cambiar Imagen</button>
+                                <input type="file" ref={productFileRef} className="hidden" accept="image/*" onChange={handleProductImageUpload} />
                             </div>
+                            <p className="text-[9px] text-slate-600 pl-2">Se optimizará automáticamente al subir.</p>
                         </div>
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Descripción Corta</label>
@@ -215,7 +285,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
           {activeTab === 'banners' && (
             <div className="space-y-10 animate-fade-in">
               <div className="flex justify-between items-center">
-                <h3 className="text-2xl font-black text-white">Banners del Home</h3>
+                <div className="space-y-1">
+                    <h3 className="text-2xl font-black text-white">Banners del Home</h3>
+                    <p className="text-slate-500 text-xs">Máximo 4 imágenes. Se comprimirán automáticamente.</p>
+                </div>
                 <button onClick={handleAddBanner} disabled={config.headerSlides.length >= 4} className="bg-blue-600 px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest text-white hover:bg-blue-500 disabled:opacity-40 flex items-center gap-2">
                    <Plus className="w-4 h-4" /> Añadir Banner
                 </button>
@@ -223,12 +296,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
 
               <div className="grid grid-cols-1 gap-12">
                 {config.headerSlides.map((slide, idx) => (
-                  <div key={slide.id} className="bg-slate-950 p-8 rounded-3xl border border-slate-800 relative group">
-                    <button onClick={() => handleRemoveBanner(idx)} className="absolute top-6 right-6 p-2 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all">
-                      <Trash2 className="w-5 h-5" />
-                    </button>
+                  <div key={slide.id} className="bg-slate-950 p-8 rounded-3xl border border-slate-800 relative group transition-all hover:border-blue-500/20">
+                    <div className="absolute top-6 right-6 flex gap-2">
+                        <span className="bg-slate-800 text-white text-[9px] font-black px-2 py-1 rounded">Slide {idx + 1}</span>
+                        <button onClick={() => handleRemoveBanner(idx)} className="p-2 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all">
+                        <Trash2 className="w-4 h-4" />
+                        </button>
+                    </div>
                     
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mt-6">
                       <div className="space-y-6">
                         <div className="space-y-2">
                           <label className="text-[10px] font-black text-slate-500 uppercase">Título Principal</label>
@@ -241,10 +317,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
                       </div>
 
                       <div className="space-y-4">
-                        <label className="text-[10px] font-black text-slate-500 uppercase">Imagen</label>
-                        <div className="aspect-[21/9] bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden relative group/img">
-                          <img src={slide.image} className="w-full h-full object-cover opacity-60 group-hover/img:opacity-80 transition-opacity" />
-                          <button onClick={() => { setActiveBannerIndex(idx); bannerFileRef.current?.click(); }} className="absolute inset-0 flex items-center justify-center text-white opacity-0 group-hover/img:opacity-100 transition-opacity font-black text-[10px] uppercase tracking-widest bg-black/40">Cambiar Imagen</button>
+                        <label className="text-[10px] font-black text-slate-500 uppercase">Imagen de Fondo</label>
+                        <div className="aspect-[21/9] bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden relative group/img cursor-pointer" onClick={() => { setActiveBannerIndex(idx); bannerFileRef.current?.click(); }}>
+                          <img src={slide.image} className="w-full h-full object-cover opacity-60 group-hover/img:opacity-100 transition-opacity" />
+                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity">
+                             <Upload className="w-6 h-6 text-white mb-2" />
+                             <span className="text-white font-black text-[10px] uppercase tracking-widest">Subir Imagen</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -252,20 +331,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
                 ))}
               </div>
 
-              <input type="file" ref={bannerFileRef} className="hidden" accept="image/*" onChange={e => {
-                const file = e.target.files?.[0];
-                if (file && activeBannerIndex !== null) {
-                  const r = new FileReader();
-                  r.onload = () => {
-                    updateSlide(activeBannerIndex, {image: r.result as string});
-                    setActiveBannerIndex(null);
-                  };
-                  r.readAsDataURL(file);
-                }
-              }} />
+              <input type="file" ref={bannerFileRef} className="hidden" accept="image/*" onChange={handleBannerImageUpload} />
 
-              <div className="pt-10 flex justify-center">
-                <button onClick={handleSaveConfig} disabled={saving} className="bg-emerald-600 px-12 py-5 rounded-2xl font-black text-white uppercase text-xs tracking-[0.2em] shadow-xl shadow-emerald-900/40 transition-all hover:bg-emerald-500 flex items-center gap-3">
+              <div className="pt-10 flex flex-col items-center gap-4">
+                {config.headerSlides.length === 0 && (
+                    <div className="flex items-center gap-2 text-amber-500 bg-amber-500/10 px-4 py-2 rounded-lg">
+                        <AlertTriangle className="w-4 h-4" />
+                        <span className="text-xs font-bold">Debes añadir al menos un banner para guardar.</span>
+                    </div>
+                )}
+                <button onClick={handleSaveConfig} disabled={saving || config.headerSlides.length === 0} className="bg-emerald-600 px-12 py-5 rounded-2xl font-black text-white uppercase text-xs tracking-[0.2em] shadow-xl shadow-emerald-900/40 transition-all hover:bg-emerald-500 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
                   <CheckCircle className="w-5 h-5" /> Sincronizar Banners
                 </button>
               </div>
