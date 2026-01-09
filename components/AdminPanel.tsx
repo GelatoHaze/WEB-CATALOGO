@@ -29,7 +29,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
   }, []);
 
   // Función utilitaria para comprimir imágenes y evitar llenar el LocalStorage
-  const compressImage = (file: File, maxWidth: number = 1280): Promise<string> => {
+  const compressImage = (file: File, maxWidth: number = 1280, quality: number = 0.6): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -50,10 +50,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
           canvas.width = width;
           canvas.height = height;
           const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-          
-          // Exportar como JPEG con calidad reducida (0.7)
-          resolve(canvas.toDataURL('image/jpeg', 0.7));
+          if (ctx) {
+              ctx.drawImage(img, 0, 0, width, height);
+              // Exportar como JPEG con calidad configurada
+              resolve(canvas.toDataURL('image/jpeg', quality));
+          } else {
+              reject(new Error("Canvas context error"));
+          }
         };
         img.onerror = (err) => reject(err);
       };
@@ -70,7 +73,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
       setEditingProduct(null);
       // No es necesario llamar a onDataChange porque la suscripción actualiza la UI
     } catch (err) {
-      alert("Error al guardar producto. Verifica que la imagen no sea demasiado pesada (Máx 1MB).");
+      alert("⚠️ Error de Almacenamiento: No hay suficiente espacio. Intenta eliminar productos antiguos o usa imágenes más livianas.");
       console.error(err);
     } finally {
       setSaving(false);
@@ -92,7 +95,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
       await StoreService.saveConfig(config);
       alert('¡Ajustes sincronizados globalmente!');
     } catch (err) {
-      alert("Error al sincronizar. Es probable que las imágenes ocupen demasiado espacio.");
+      alert("⚠️ Memoria Llena: Las imágenes ocupan demasiado espacio. \n\nIntenta:\n1. Eliminar algún banner.\n2. Eliminar productos antiguos con imágenes pesadas.\n3. Reintentar.");
     } finally {
       setSaving(false);
     }
@@ -134,7 +137,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
     if (file && editingProduct) {
         setProcessingImage(true);
         try {
-            const compressedBase64 = await compressImage(file, 800); // 800px max para productos
+            // COMPRESIÓN AGRESIVA PARA PRODUCTOS: 600px ancho, 0.6 calidad
+            // Esto reduce drásticamente el peso (aprox 50-80KB por imagen)
+            const compressedBase64 = await compressImage(file, 600, 0.6); 
             setEditingProduct({...editingProduct, image: compressedBase64});
         } catch (error) {
             console.error(error);
@@ -151,8 +156,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
     if (file && activeBannerIndex !== null) {
         setProcessingImage(true);
         try {
-            // 1600px max para banners, suficiente para web y mobile
-            const compressedBase64 = await compressImage(file, 1600);
+            // COMPRESIÓN OPTIMIZADA PARA BANNERS: 1280px ancho, 0.6 calidad
+            // Suficiente para HD, peso aprox 150-250KB
+            const compressedBase64 = await compressImage(file, 1280, 0.6);
             updateSlide(activeBannerIndex, {image: compressedBase64});
             setActiveBannerIndex(null);
         } catch (error) {
@@ -190,7 +196,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
             <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-[2rem]">
               <RefreshCw className="w-12 h-12 text-blue-500 animate-spin mb-4" />
               <span className="text-white font-black uppercase tracking-widest text-sm">
-                {processingImage ? 'Optimizando Imagen...' : 'Guardando Cambios...'}
+                {processingImage ? 'Optimizando y Comprimiendo...' : 'Guardando en LocalStorage...'}
               </span>
             </div>
           )}
@@ -287,7 +293,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
               <div className="flex justify-between items-center">
                 <div className="space-y-1">
                     <h3 className="text-2xl font-black text-white">Banners del Home</h3>
-                    <p className="text-slate-500 text-xs">Máximo 4 imágenes. Se comprimirán automáticamente.</p>
+                    <p className="text-slate-500 text-xs">Máximo 4 imágenes. Se comprimirán agresivamente para ahorrar espacio.</p>
                 </div>
                 <button onClick={handleAddBanner} disabled={config.headerSlides.length >= 4} className="bg-blue-600 px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest text-white hover:bg-blue-500 disabled:opacity-40 flex items-center gap-2">
                    <Plus className="w-4 h-4" /> Añadir Banner
@@ -317,14 +323,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
                       </div>
 
                       <div className="space-y-4">
-                        <label className="text-[10px] font-black text-slate-500 uppercase">Imagen de Fondo</label>
-                        <div className="aspect-[21/9] bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden relative group/img cursor-pointer" onClick={() => { setActiveBannerIndex(idx); bannerFileRef.current?.click(); }}>
+                        <div className="flex justify-between items-center">
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Imagen de Fondo</label>
+                            <span className="text-[9px] text-blue-400 font-bold uppercase tracking-widest flex items-center gap-1">
+                                <Smartphone className="w-3 h-3" /> Guía Móvil Activa
+                            </span>
+                        </div>
+                        
+                        <div className="aspect-video bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden relative group/img cursor-pointer" onClick={() => { setActiveBannerIndex(idx); bannerFileRef.current?.click(); }}>
                           <img src={slide.image} className="w-full h-full object-cover opacity-60 group-hover/img:opacity-100 transition-opacity" />
-                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity">
+                          
+                          {/* GUIAS VISUALES DE ZONA SEGURA MOVIL */}
+                          {/* Representa aprox el area central visible en un telefono (ratio 9:16 vertical dentro de un 16:9 horizontal) */}
+                          <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[32%] border-x-2 border-dashed border-blue-500/30 bg-blue-500/5 pointer-events-none flex flex-col items-center justify-end pb-4">
+                             <div className="bg-slate-900/80 px-2 py-1 rounded text-[8px] font-black text-blue-400 uppercase tracking-widest backdrop-blur-md border border-blue-500/20">
+                                Visible en Celular
+                             </div>
+                          </div>
+
+                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity z-10">
                              <Upload className="w-6 h-6 text-white mb-2" />
                              <span className="text-white font-black text-[10px] uppercase tracking-widest">Subir Imagen</span>
                           </div>
                         </div>
+                        <p className="text-[9px] text-slate-500">Mantén el sujeto principal dentro de la zona central punteada para que se vea bien en celulares.</p>
                       </div>
                     </div>
                   </div>

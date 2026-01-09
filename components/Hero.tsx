@@ -71,7 +71,8 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
   const activeSlide = slides[currentSlide] || defaultSlide;
 
   return (
-    <section id="inicio" className="relative h-screen md:h-[95vh] bg-slate-950 overflow-hidden group">
+    // CHANGE: h-screen -> h-[100dvh] para soporte móvil robusto (Dynamic Viewport Height)
+    <section id="inicio" className="relative h-[100dvh] md:h-[95vh] bg-slate-950 overflow-hidden group">
       {/* Dynamic Background */}
       {slides.map((slide, index) => {
         const isActive = index === currentSlide;
@@ -100,9 +101,10 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
               // OPTIMIZACIONES DE PERFORMANCE CRÍTICAS:
               // decoding="sync": Fuerza al navegador a decodificar la imagen antes de pintar (evita flash blanco).
               // loading="eager": Prioridad alta de carga.
+              // CHANGE: object-center explícito
               decoding="sync"
               loading="eager"
-              className={`w-full h-full object-cover filter brightness-50 contrast-125 transform-gpu will-change-transform transition-transform duration-[12000ms] ease-out ${
+              className={`w-full h-full object-cover object-center filter brightness-50 contrast-125 transform-gpu will-change-transform transition-transform duration-[12000ms] ease-out ${
                 isActive ? 'scale-110 translate-x-4' : 'scale-100 translate-x-0'
               }`}
             />
