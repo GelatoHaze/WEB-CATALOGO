@@ -2,12 +2,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Product, AppConfig, Variant, HeaderSlide, Category } from '../types';
 import { StoreService } from '../services/store';
+import { GoogleGenAI, Type } from "@google/genai";
 import { 
   Save, Trash2, Plus, Edit, Settings, Package, LogOut, LayoutTemplate, 
   Image as ImageIcon, X, Upload, List, Smartphone, Coffee, Tv, 
   Laptop, Watch, Camera, Headphones, DollarSign, Layers, Eye, EyeOff, 
   CheckCircle, Sparkles, RefreshCw, Monitor, AlertTriangle,
-  Refrigerator, Home, Gamepad, Shirt, Car, Music
+  Refrigerator, Home, Gamepad, Shirt, Car, Music, Wand2
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -22,6 +23,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [saving, setSaving] = useState(false);
   const [processingImage, setProcessingImage] = useState(false);
+  const [generatingAI, setGeneratingAI] = useState(false);
   
   const productFileRef = useRef<HTMLInputElement>(null);
   const bannerFileRef = useRef<HTMLInputElement>(null);
@@ -68,6 +70,70 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
       };
       reader.onerror = (err) => reject(err);
     });
+  };
+
+  // --- LÓGICA DE IA (GEMINI) ---
+  const handleGenerateAI = async () => {
+    if (!editingProduct?.name || editingProduct.name.length < 3) {
+      alert("Por favor, ingresa primero el nombre del producto para generar su contenido.");
+      return;
+    }
+
+    // Obtener nombre de la categoría para dar contexto
+    const categoryName = config.categories.find(c => c.id === editingProduct.category)?.name || "Tecnología";
+
+    setGeneratingAI(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      
+      const prompt = `
+        Genera contenido para un producto de e-commerce.
+        Producto: "${editingProduct.name}"
+        Categoría: "${categoryName}"
+        
+        Tareas:
+        1. "description": Una descripción comercial atractiva, premium y persuasiva (máx 300 caracteres).
+        2. "features": Una lista de 5 características técnicas clave y breves.
+        
+        Responde estrictamente en JSON.
+      `;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-preview',
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              description: { type: Type.STRING },
+              features: { 
+                type: Type.ARRAY, 
+                items: { type: Type.STRING } 
+              }
+            }
+          }
+        }
+      });
+
+      if (response.text) {
+        const data = JSON.parse(response.text);
+        setEditingProduct(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            description: data.description || prev.description,
+            features: data.features || prev.features
+          };
+        });
+      }
+
+    } catch (error) {
+      console.error("Error generating AI content:", error);
+      alert("No se pudo generar el contenido con IA. Verifica tu conexión o intenta más tarde.");
+    } finally {
+      setGeneratingAI(false);
+    }
   };
 
   const handleSaveProduct = async (e: React.FormEvent) => {
@@ -247,11 +313,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
         </aside>
 
         <main className="flex-grow bg-slate-900/50 rounded-[2rem] border border-slate-800 p-8 md:p-12 min-h-[600px] relative">
-          {(saving || processingImage) && (
+          {(saving || processingImage || generatingAI) && (
             <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-[2rem]">
-              <RefreshCw className="w-12 h-12 text-blue-500 animate-spin mb-4" />
+              {generatingAI ? (
+                 <Sparkles className="w-12 h-12 text-blue-500 animate-pulse mb-4" />
+              ) : (
+                 <RefreshCw className="w-12 h-12 text-blue-500 animate-spin mb-4" />
+              )}
               <span className="text-white font-black uppercase tracking-widest text-sm">
-                {processingImage ? 'Optimizando y Comprimiendo...' : 'Guardando en LocalStorage...'}
+                {generatingAI ? 'Generando contenido con IA...' : processingImage ? 'Optimizando Imagen...' : 'Guardando...'}
               </span>
             </div>
           )}
@@ -297,17 +367,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
                     <div className="space-y-6">
                       <div className="space-y-2">
                         <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Nombre</label>
-                        <input type="text" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-white focus:border-blue-500 outline-none" required />
+                        <div className="flex gap-3">
+                           <input type="text" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-white focus:border-blue-500 outline-none" required placeholder="Ej: iPhone 15 Pro Max" />
+                           <button 
+                             type="button" 
+                             onClick={handleGenerateAI}
+                             className="bg-blue-600/10 text-blue-400 hover:bg-blue-600 hover:text-white border border-blue-500/20 rounded-2xl px-4 flex items-center justify-center transition-all"
+                             title="Generar descripción y características con IA"
+                           >
+                             <Sparkles className="w-5 h-5" />
+                           </button>
+                        </div>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Categoría</label>
-                            <select value={editingProduct.category} onChange={e => setEditingProduct({...editingProduct, category: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-white outline-none">
+                            <select 
+                                value={editingProduct.category} 
+                                onChange={e => setEditingProduct({...editingProduct, category: e.target.value})} 
+                                className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-white outline-none cursor-pointer"
+                            >
                                 {config.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
                         </div>
                         <div className="space-y-2">
-                             {/* ADDED MISSING PRICE INPUT */}
                             <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Precio</label>
                             <div className="relative">
                                 <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -320,8 +403,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Características (Línea por línea)</label>
-                        <textarea value={editingProduct.features?.join('\n')} onChange={e => setEditingProduct({...editingProduct, features: e.target.value.split('\n')})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-white h-32 outline-none focus:border-blue-500/50 transition-colors" />
+                        <div className="flex justify-between items-center">
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Características (Línea por línea)</label>
+                            <span className="text-[9px] text-blue-500 font-bold flex items-center gap-1"><Wand2 className="w-3 h-3" /> IA Auto-fill</span>
+                        </div>
+                        <textarea 
+                            value={editingProduct.features?.join('\n')} 
+                            onChange={e => setEditingProduct({...editingProduct, features: e.target.value.split('\n')})} 
+                            className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-white h-32 outline-none focus:border-blue-500/50 transition-colors" 
+                            placeholder="- Pantalla OLED 120Hz&#10;- Chip A17 Pro&#10;- Batería de larga duración"
+                        />
                       </div>
                     </div>
 
