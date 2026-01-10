@@ -8,7 +8,7 @@ import {
   Image as ImageIcon, X, Upload, List, Smartphone, Coffee, Tv, 
   Laptop, Watch, Camera, Headphones, DollarSign, Layers, Eye, EyeOff, 
   CheckCircle, Sparkles, RefreshCw, Monitor, AlertTriangle,
-  Refrigerator, Home, Gamepad, Shirt, Car, Music, Wand2
+  Refrigerator, Home, Gamepad, Shirt, Car, Music, Wand2, RotateCcw
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -170,6 +170,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
       alert("⚠️ Memoria Llena: Las imágenes ocupan demasiado espacio. \n\nIntenta:\n1. Eliminar algún banner.\n2. Eliminar productos antiguos con imágenes pesadas.\n3. Reintentar.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleResetConfig = async () => {
+    if (confirm("⚠️ ¿Estás seguro? Esto reseteará la configuración (banners, categorías, textos) a los valores originales del código. No afectará a los productos.")) {
+        await StoreService.resetConfig();
+        alert("Configuración reseteada. La página se recargará.");
+        window.location.reload();
     }
   };
 
@@ -587,21 +595,39 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
           )}
 
           {activeTab === 'config' && (
-            <div className="max-w-3xl space-y-8 animate-fade-in">
-                <h3 className="text-2xl font-black text-white">Global Settings</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase ml-1">WhatsApp Business</label>
-                        <input type="text" value={config.whatsappNumber} onChange={e => setConfig({...config, whatsappNumber: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-4 text-white" />
+            <div className="max-w-3xl space-y-12 animate-fade-in">
+                
+                <section className="space-y-8">
+                    <h3 className="text-2xl font-black text-white">Global Settings</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">WhatsApp Business</label>
+                            <input type="text" value={config.whatsappNumber} onChange={e => setConfig({...config, whatsappNumber: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-4 text-white" />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Email Público</label>
+                            <input type="text" value={config.email} onChange={e => setConfig({...config, email: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-4 text-white" />
+                        </div>
                     </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Email Público</label>
-                        <input type="text" value={config.email} onChange={e => setConfig({...config, email: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-4 text-white" />
-                    </div>
-                </div>
-                <button onClick={handleSaveConfig} disabled={saving} className="bg-blue-600 px-12 py-5 rounded-2xl font-black text-white uppercase text-xs flex items-center gap-3 shadow-xl shadow-blue-900/30">
-                    <CheckCircle className="w-5 h-5" /> Guardar Todo en la Nube
-                </button>
+                    <button onClick={handleSaveConfig} disabled={saving} className="bg-blue-600 px-12 py-5 rounded-2xl font-black text-white uppercase text-xs flex items-center gap-3 shadow-xl shadow-blue-900/30">
+                        <CheckCircle className="w-5 h-5" /> Guardar Todo en la Nube
+                    </button>
+                </section>
+
+                <section className="pt-8 border-t border-slate-800 space-y-6">
+                     <div className="flex items-start gap-4 p-6 bg-slate-950 border border-slate-800 rounded-3xl">
+                        <div className="p-3 bg-red-500/10 rounded-xl text-red-500">
+                             <RotateCcw className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-white mb-1">Zona de Peligro: Resetear Configuración</h4>
+                            <p className="text-slate-500 text-xs mb-4">Si la página se ve rota o no se muestran las últimas actualizaciones de diseño, utiliza este botón. Tus productos NO se borrarán.</p>
+                            <button onClick={handleResetConfig} className="text-red-500 hover:text-red-400 font-black text-[10px] uppercase tracking-widest bg-red-500/10 hover:bg-red-500/20 px-6 py-3 rounded-xl transition-all">
+                                Forzar Limpieza y Recargar
+                            </button>
+                        </div>
+                     </div>
+                </section>
             </div>
           )}
         </main>

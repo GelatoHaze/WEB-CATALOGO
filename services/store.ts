@@ -5,8 +5,13 @@ import { Product, AppConfig, User } from '../types';
 const COLLECTIONS = {
   PRODUCTS: 'cblls_products_local',
   CONFIG: 'cblls_config_local',
-  USER: 'cblls_user_session'
+  USER: 'cblls_user_session',
+  VERSION: 'cblls_app_version' // Nueva clave para control de versión
 };
+
+// IMPORTANTE: Incrementa esto cuando hagas cambios importantes en el código (bánners, textos por defecto)
+// para forzar a que todos los usuarios vean la actualización.
+const APP_VERSION = 'v1.1.0';
 
 // INITIAL CONFIG DATA
 const INITIAL_CONFIG: AppConfig = {
@@ -91,6 +96,32 @@ const safeSetItem = (key: string, value: any) => {
     }
 };
 
+// --- CONTROL DE VERSIONADO ---
+// Verifica si la versión de la app cambió para limpiar caché vieja
+const checkAppVersion = () => {
+    try {
+        const storedVersion = localStorage.getItem(COLLECTIONS.VERSION);
+        if (storedVersion !== APP_VERSION) {
+            console.log(`Actualización detectada: ${storedVersion} -> ${APP_VERSION}`);
+            
+            // Si la versión cambió, reseteamos la CONFIG para que tome los nuevos valores del código (INITIAL_CONFIG)
+            // NO borramos productos ni usuarios, solo la configuración visual.
+            localStorage.removeItem(COLLECTIONS.CONFIG);
+            
+            // Actualizamos la versión guardada
+            localStorage.setItem(COLLECTIONS.VERSION, APP_VERSION);
+            return true; // Indicate reset happened
+        }
+    } catch (e) {
+        console.error("Error checking version", e);
+    }
+    return false;
+};
+
+// Ejecutar check al cargar el módulo
+checkAppVersion();
+
+
 export const StoreService = {
   // Suscripción a productos (Local)
   subscribeToProducts: (callback: (products: Product[]) => void) => {
@@ -129,6 +160,7 @@ export const StoreService = {
         const stored = localStorage.getItem(COLLECTIONS.CONFIG);
         const parsed = stored ? JSON.parse(stored) : {};
         
+        // Si no hay nada guardado, o se acaba de resetear por versión, usa INITIAL_CONFIG
         return {
             ...INITIAL_CONFIG,
             ...parsed,
@@ -197,6 +229,14 @@ export const StoreService = {
     } else {
         throw new Error("No se pudo guardar la configuración");
     }
+  },
+
+  // Método manual para resetear config a valores de fábrica
+  resetConfig: async () => {
+    localStorage.removeItem(COLLECTIONS.CONFIG);
+    const defaults = INITIAL_CONFIG;
+    notify('config', defaults);
+    return defaults;
   },
 
   login: async (email: string, pass: string): Promise<{ success: boolean; user?: User; message?: string }> => {
