@@ -317,9 +317,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
               {tab.icon} {tab.label}
             </button>
           ))}
-          <button onClick={onLogout} className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold text-red-500 hover:bg-red-500/10 mt-10 transition-colors">
-            <LogOut className="w-5 h-5" /> Salir de Sesión
-          </button>
+          <div className="mt-10 pt-10 border-t border-slate-800 space-y-4">
+            <button onClick={onLogout} className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold text-red-500 hover:bg-red-500/10 transition-colors">
+                <LogOut className="w-5 h-5" /> Salir de Sesión
+            </button>
+            <div className="px-6 text-center">
+                <span className="text-[10px] font-mono text-slate-600">
+                    System Version: <span className="text-blue-500 font-bold">{StoreService.getAppVersion()}</span>
+                </span>
+            </div>
+          </div>
         </aside>
 
         <main className="flex-grow bg-slate-900/50 rounded-[2rem] border border-slate-800 p-8 md:p-12 min-h-[600px] relative">

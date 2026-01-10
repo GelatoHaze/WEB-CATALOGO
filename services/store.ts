@@ -11,7 +11,7 @@ const COLLECTIONS = {
 
 // IMPORTANTE: Incrementa esto cuando hagas cambios importantes en el código (bánners, textos por defecto)
 // para forzar a que todos los usuarios vean la actualización.
-const APP_VERSION = 'v1.1.0';
+const APP_VERSION = 'v1.2.0';
 
 // INITIAL CONFIG DATA
 const INITIAL_CONFIG: AppConfig = {
@@ -123,6 +123,8 @@ checkAppVersion();
 
 
 export const StoreService = {
+  getAppVersion: () => APP_VERSION,
+
   // Suscripción a productos (Local)
   subscribeToProducts: (callback: (products: Product[]) => void) => {
     listeners.products.push(callback);
