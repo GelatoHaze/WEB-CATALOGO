@@ -45,7 +45,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    // CRITICAL FIX: z-index increased to 1000 to ensure it sits above ProductModal (z-300)
     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-950/98 animate-in fade-in duration-200" onClick={onClose}></div>
       
@@ -126,7 +125,7 @@ const App: React.FC = () => {
   const [loginError, setLoginError] = useState('');
   const [loginSuccess, setLoginSuccess] = useState('');
 
-  // 1. Suscripciones a Datos (Una sola vez al montar)
+  // 1. Suscripciones a Datos
   useEffect(() => {
     const unsubProducts = StoreService.subscribeToProducts((updatedProducts) => {
       setProducts(updatedProducts);
@@ -163,7 +162,6 @@ const App: React.FC = () => {
     if (authMode === 'login') {
       const res = await StoreService.login(formData.email, formData.password);
       if (res.success && res.user) {
-        // El useEffect de arriba cerrará el modal si está verificado
         if (!res.user.isVerified && res.user.role !== 'admin') {
             setAuthMode('verification-check');
         }
@@ -250,4 +248,30 @@ const App: React.FC = () => {
                      <p className="text-blue-500 font-black text-[10px] uppercase tracking-[0.4em]">Hardware de Vanguardia</p>
                    </div>
                    <div className="bg-slate-950/80 px-6 py-3 rounded-2xl border border-white/5 backdrop-blur-sm">
-                     <span className="text-[10px] font
+                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        {filteredProducts.length} Referencias
+                     </span>
+                   </div>
+                </div>
+                
+                <Products 
+                    products={filteredProducts} 
+                    isLoading={loading} 
+                    config={config} 
+                    user={user}
+                    onLoginReq={handleOpenAuth} 
+                />
+              </div>
+            </section>
+            
+            <Features />
+            <Contact user={user} config={config} onLoginReq={handleOpenAuth} />
+          </main>
+          <Footer config={config} />
+        </>
+      )}
+    </div>
+  );
+};
+
+export default App;
