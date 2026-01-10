@@ -2,7 +2,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Product, AppConfig, Variant, HeaderSlide, Category } from '../types';
 import { StoreService } from '../services/store';
-import { Save, Trash2, Plus, Edit, Settings, Package, LogOut, LayoutTemplate, Image as ImageIcon, X, Upload, List, Smartphone, Coffee, Tv, Laptop, Watch, Camera, Headphones, DollarSign, Layers, Eye, EyeOff, CheckCircle, Sparkles, RefreshCw, Monitor, AlertTriangle } from 'lucide-react';
+import { 
+  Save, Trash2, Plus, Edit, Settings, Package, LogOut, LayoutTemplate, 
+  Image as ImageIcon, X, Upload, List, Smartphone, Coffee, Tv, 
+  Laptop, Watch, Camera, Headphones, DollarSign, Layers, Eye, EyeOff, 
+  CheckCircle, Sparkles, RefreshCw, Monitor, AlertTriangle,
+  Refrigerator, Home, Gamepad, Shirt, Car, Music
+} from 'lucide-react';
 
 interface AdminPanelProps {
   onLogout: () => void;
@@ -171,7 +177,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
     }
   };
 
-  // --- NUEVA LÓGICA DE CATEGORÍAS ---
+  // --- LÓGICA DE CATEGORÍAS MEJORADA ---
   const handleAddCategory = () => {
     const newCat: Category = {
         id: 'cat-' + Date.now(),
@@ -197,6 +203,26 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
     const newCats = [...config.categories];
     newCats[index] = { ...newCats[index], [field]: value };
     setConfig({...config, categories: newCats});
+  };
+
+  // Helper para renderizar preview del icono en Admin
+  const getIconPreview = (iconName: string) => {
+    const map: Record<string, React.ReactNode> = {
+      smartphone: <Smartphone className="w-6 h-6" />,
+      coffee: <Coffee className="w-6 h-6" />,
+      tv: <Tv className="w-6 h-6" />,
+      refrigerator: <Refrigerator className="w-6 h-6" />,
+      laptop: <Laptop className="w-6 h-6" />,
+      watch: <Watch className="w-6 h-6" />,
+      headphones: <Headphones className="w-6 h-6" />,
+      camera: <Camera className="w-6 h-6" />,
+      home: <Home className="w-6 h-6" />,
+      gamepad: <Gamepad className="w-6 h-6" />,
+      shirt: <Shirt className="w-6 h-6" />,
+      car: <Car className="w-6 h-6" />,
+      music: <Music className="w-6 h-6" />,
+    };
+    return map[iconName] || <Package className="w-6 h-6" />;
   };
   // ----------------------------------
 
@@ -338,27 +364,34 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
                             </button>
                         </div>
                         
-                        <div className="space-y-4 flex-grow pr-10">
-                            <div className="space-y-2">
-                                <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Nombre Visible</label>
-                                <input 
-                                    type="text" 
-                                    value={cat.name} 
-                                    onChange={(e) => updateCategory(idx, 'name', e.target.value)} 
-                                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white font-bold text-sm focus:border-blue-500 outline-none" 
-                                />
+                        <div className="flex items-center gap-4 w-full pr-10">
+                            {/* Visual Preview */}
+                            <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center border border-slate-800 text-blue-500 shadow-lg">
+                                {getIconPreview(cat.icon)}
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Icono Representativo</label>
-                                <select 
-                                    value={cat.icon} 
-                                    onChange={(e) => updateCategory(idx, 'icon', e.target.value)}
-                                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs outline-none"
-                                >
-                                    {['smartphone', 'coffee', 'tv', 'refrigerator', 'laptop', 'watch', 'headphones', 'camera', 'home', 'gamepad', 'shirt', 'car', 'music'].map(i => (
-                                        <option key={i} value={i}>{i.toUpperCase()}</option>
-                                    ))}
-                                </select>
+
+                            <div className="space-y-4 flex-grow">
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Nombre Visible</label>
+                                    <input 
+                                        type="text" 
+                                        value={cat.name} 
+                                        onChange={(e) => updateCategory(idx, 'name', e.target.value)} 
+                                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white font-bold text-sm focus:border-blue-500 outline-none" 
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Icono Representativo</label>
+                                    <select 
+                                        value={cat.icon} 
+                                        onChange={(e) => updateCategory(idx, 'icon', e.target.value)}
+                                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs outline-none cursor-pointer"
+                                    >
+                                        {['smartphone', 'coffee', 'tv', 'refrigerator', 'laptop', 'watch', 'headphones', 'camera', 'home', 'gamepad', 'shirt', 'car', 'music'].map(i => (
+                                            <option key={i} value={i}>{i.toUpperCase()}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     </div>
