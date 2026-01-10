@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#020617" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>CBLLS - Innovación Premium</title>
     <meta name="description" content="Catálogo exclusivo de tecnología y electrodomésticos de alta gama." />
     <!-- Tailwind CSS Script for Development/Runtime usage -->
@@ -14,11 +17,14 @@
       :root {
         --sat: env(safe-area-inset-top, 0px);
         --sab: env(safe-area-inset-bottom, 0px);
+        --sal: env(safe-area-inset-left, 0px);
+        --sar: env(safe-area-inset-right, 0px);
       }
       
       * {
         scrollbar-width: thin;
         scrollbar-color: #1e293b #020617;
+        -webkit-tap-highlight-color: transparent; /* Remove blue tap box on mobile */
       }
 
       ::-webkit-scrollbar {
@@ -37,7 +43,8 @@
         background-color: #020617 !important;
         margin: 0;
         padding: 0;
-        overflow-x: hidden;
+        overflow-x: hidden; /* Prevent horizontal scroll */
+        width: 100%;
       }
 
       body {
@@ -57,8 +64,10 @@
 
       #root {
         padding-top: var(--sat);
-        padding-bottom: var(--sab);
+        /* Padding bottom is handled by components or footer to avoid gaps */
         min-height: 100vh;
+        width: 100%;
+        position: relative;
       }
 
       #initial-loader {

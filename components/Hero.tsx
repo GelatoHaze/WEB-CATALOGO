@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { MessageCircle, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
 import { AppConfig } from '../types';
@@ -77,13 +76,6 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
       {slides.map((slide, index) => {
         const isActive = index === currentSlide;
         // Lógica Anti-Flicker:
-        // 1. La imagen activa tiene z-10 y opacidad 1.
-        // 2. Las imágenes inactivas tienen z-0. 
-        // 3. TRUCO: La transición de opacidad se hace con un delay en la SALIDA o usando una técnica de apilamiento.
-        // Aquí usamos apilamiento absoluto: La nueva imagen (z-10) hace fade-in SOBRE la anterior (z-0).
-        // Si hacemos fade-out de la anterior al mismo tiempo, se ve el fondo.
-        // Solución: Dejamos que la imagen activa haga fade-in. La inactiva simplemente se queda atrás hasta que es tapada.
-        
         return (
           <div 
             key={slide.id}
@@ -98,10 +90,6 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
             <img
               src={slide.image}
               alt={slide.title}
-              // OPTIMIZACIONES DE PERFORMANCE CRÍTICAS:
-              // decoding="sync": Fuerza al navegador a decodificar la imagen antes de pintar (evita flash blanco).
-              // loading="eager": Prioridad alta de carga.
-              // CHANGE: object-center explícito
               decoding="sync"
               loading="eager"
               className={`w-full h-full object-cover object-center filter brightness-50 contrast-125 transform-gpu will-change-transform transition-transform duration-[12000ms] ease-out ${
@@ -116,30 +104,31 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
       <div className="relative z-20 container mx-auto px-4 h-full flex items-center">
         <div className="max-w-4xl space-y-6 md:space-y-10">
           <div className="flex items-center gap-3 animate-fade-in-up">
-            <div className="h-px w-12 bg-blue-500"></div>
-            <span className="text-blue-500 font-black text-xs md:text-sm uppercase tracking-[0.5em] flex items-center gap-2">
-              <Sparkles className="w-4 h-4" /> Innovación Sin Límites
+            <div className="h-px w-8 md:w-12 bg-blue-500"></div>
+            <span className="text-blue-500 font-black text-[10px] md:text-sm uppercase tracking-[0.5em] flex items-center gap-2">
+              <Sparkles className="w-3 h-3 md:w-4 md:h-4" /> Innovación Sin Límites
             </span>
           </div>
           
           {/* Key trick: Usamos key={currentSlide} en el texto para forzar la re-animación CSS al cambiar de slide */}
-          <div key={activeSlide.id} className="space-y-6 md:space-y-10">
-              <h1 className="text-5xl md:text-8xl font-black text-white leading-[1.1] tracking-tighter drop-shadow-2xl font-heading animate-[fadeInLeft_0.8s_ease-out]">
+          <div key={activeSlide.id} className="space-y-4 md:space-y-10">
+              {/* CHANGE: Responsive text sizing adjusted for better mobile fit */}
+              <h1 className="text-4xl sm:text-5xl md:text-8xl font-black text-white leading-[1.1] tracking-tighter drop-shadow-2xl font-heading animate-[fadeInLeft_0.8s_ease-out]">
                 {activeSlide.title.split(' ').map((word, i) => (
                     <span key={i} className={i % 2 !== 0 ? 'text-blue-500' : ''}>{word} </span>
                 ))}
               </h1>
               
-              <p className="text-slate-300 text-lg md:text-2xl max-w-xl drop-shadow-lg leading-relaxed font-medium animate-[fadeInLeft_1s_ease-out]">
+              <p className="text-slate-300 text-base md:text-2xl max-w-xl drop-shadow-lg leading-relaxed font-medium animate-[fadeInLeft_1s_ease-out]">
                 {activeSlide.subtitle}
               </p>
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-5 pt-8 animate-[fadeInUp_1.2s_ease-out]">
+          <div className="flex flex-col sm:flex-row gap-4 md:gap-5 pt-6 md:pt-8 animate-[fadeInUp_1.2s_ease-out]">
             <a
               href={activeSlide.ctaLink}
               onClick={(e) => handleScrollTo(e, activeSlide.ctaLink)}
-              className="group relative overflow-hidden text-center bg-blue-600 hover:bg-blue-500 text-white px-12 py-5 rounded-2xl font-black transition-all shadow-2xl shadow-blue-900/40 uppercase tracking-widest text-sm"
+              className="group relative overflow-hidden text-center bg-blue-600 hover:bg-blue-500 text-white px-8 md:px-12 py-4 md:py-5 rounded-2xl font-black transition-all shadow-2xl shadow-blue-900/40 uppercase tracking-widest text-xs md:text-sm"
             >
               <span className="relative z-10">{activeSlide.ctaText}</span>
               <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
@@ -147,7 +136,7 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
             
             <button 
               onClick={(e) => handleScrollTo(e, '#contacto')}
-              className="flex items-center justify-center gap-3 bg-slate-900/80 backdrop-blur-md border border-slate-800 hover:border-slate-700 text-white px-12 py-5 rounded-2xl font-black transition-all shadow-2xl uppercase tracking-widest text-sm active:scale-95 group"
+              className="flex items-center justify-center gap-3 bg-slate-900/80 backdrop-blur-md border border-slate-800 hover:border-slate-700 text-white px-8 md:px-12 py-4 md:py-5 rounded-2xl font-black transition-all shadow-2xl uppercase tracking-widest text-xs md:text-sm active:scale-95 group"
             >
               <MessageCircle className="w-5 h-5 text-emerald-500 group-hover:scale-110 transition-transform" />
               Solicitar Cotización
@@ -158,31 +147,31 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
 
       {/* Navigation UI */}
       {slides.length > 1 && (
-        <div className="absolute bottom-20 right-4 md:right-12 z-30 flex items-center gap-4">
+        <div className="absolute bottom-10 md:bottom-20 right-4 md:right-12 z-30 flex items-center gap-4">
           <button 
             onClick={prevSlide}
-            className="p-4 bg-slate-900/50 hover:bg-slate-900 border border-slate-800 text-white rounded-2xl backdrop-blur-md transition-all hover:-translate-y-1 active:translate-y-0"
+            className="p-3 md:p-4 bg-slate-900/50 hover:bg-slate-900 border border-slate-800 text-white rounded-2xl backdrop-blur-md transition-all hover:-translate-y-1 active:translate-y-0"
           >
-            <ChevronLeft className="w-6 h-6" />
+            <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
           </button>
-          <div className="h-px w-12 bg-slate-800"></div>
+          <div className="h-px w-8 md:w-12 bg-slate-800"></div>
           <button 
             onClick={nextSlide}
-            className="p-4 bg-slate-900/50 hover:bg-slate-900 border border-slate-800 text-white rounded-2xl backdrop-blur-md transition-all hover:-translate-y-1 active:translate-y-0"
+            className="p-3 md:p-4 bg-slate-900/50 hover:bg-slate-900 border border-slate-800 text-white rounded-2xl backdrop-blur-md transition-all hover:-translate-y-1 active:translate-y-0"
           >
-            <ChevronRight className="w-6 h-6" />
+            <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
           </button>
         </div>
       )}
 
       {/* Side pagination indicators */}
-      <div className="absolute left-4 md:left-12 top-1/2 -translate-y-1/2 z-30 flex flex-col gap-6">
+      <div className="absolute left-4 md:left-12 top-1/2 -translate-y-1/2 z-30 flex flex-col gap-4 md:gap-6">
         {slides.map((_, idx) => (
           <button
             key={idx}
             onClick={() => setCurrentSlide(idx)}
             className={`w-1 rounded-full transition-all duration-500 ${
-              idx === currentSlide ? 'h-16 bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)]' : 'h-4 bg-slate-800 hover:bg-slate-600'
+              idx === currentSlide ? 'h-10 md:h-16 bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)]' : 'h-3 md:h-4 bg-slate-800 hover:bg-slate-600'
             }`}
           ></button>
         ))}

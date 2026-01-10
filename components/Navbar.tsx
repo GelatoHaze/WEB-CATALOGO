@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Instagram, LogIn, Menu, X, LogOut, ShieldCheck, LayoutDashboard, Cpu } from 'lucide-react';
 import { AppConfig, User } from '../types';
@@ -25,7 +24,13 @@ const Navbar: React.FC<NavbarProps> = ({ config, user, onNavigate, onLogout, onT
   // Cerrar menú móvil al cambiar a vista admin o redimensionar
   useEffect(() => {
     setIsMenuOpen(false);
-  }, [isAdminView]);
+    // Prevent scrolling when menu is open
+    if (isMenuOpen) {
+        document.body.style.overflow = 'hidden';
+    } else {
+        document.body.style.overflow = 'auto';
+    }
+  }, [isAdminView, isMenuOpen]);
 
   const handleScrollTo = (id: string) => {
     const element = document.querySelector(id);
@@ -105,9 +110,9 @@ const Navbar: React.FC<NavbarProps> = ({ config, user, onNavigate, onLogout, onT
         </div>
       </div>
 
-      {/* Mobile Menu - Opacidad Total para evitar rastros */}
+      {/* Mobile Menu - CHANGE: h-[100dvh] ensures it covers the mobile browser bar area */}
       {isMenuOpen && (
-        <div className="lg:hidden fixed inset-0 top-[80px] bg-slate-950 z-[190] p-8 flex flex-col gap-8 animate-in fade-in slide-in-from-top-4 duration-300">
+        <div className="lg:hidden fixed inset-0 top-0 h-[100dvh] bg-slate-950 z-[190] pt-24 pb-8 px-8 flex flex-col gap-8 animate-in fade-in slide-in-from-top-4 duration-300">
           {!isAdminView && ['Inicio', 'Categorías', 'Productos', 'Contacto'].map(link => (
             <button key={link} onClick={() => handleScrollTo(`#${link.toLowerCase().replace('í', 'i')}`)} className="text-2xl font-black text-white text-left uppercase tracking-tighter">{link}</button>
           ))}
@@ -116,7 +121,7 @@ const Navbar: React.FC<NavbarProps> = ({ config, user, onNavigate, onLogout, onT
               {isAdminView ? 'Regresar a la Web' : 'Panel de Gestión'}
             </button>
           )}
-          <div className="mt-auto space-y-4">
+          <div className="mt-auto space-y-4 pb-safe">
             {user ? (
               <button onClick={onLogout} className="w-full py-5 bg-red-500/10 text-red-500 rounded-2xl font-black uppercase text-xs tracking-widest">Cerrar Sesión</button>
             ) : (

@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { MapPin, Phone, MessageCircle, Instagram, Facebook, Linkedin, Twitter } from 'lucide-react';
+import { MapPin, Phone, MessageCircle, Instagram, Facebook, Linkedin, Twitter, Cpu } from 'lucide-react';
 import { AppConfig } from '../types';
 
 interface FooterProps {
@@ -16,11 +15,13 @@ const Footer: React.FC<FooterProps> = ({ config }) => {
           <div className="space-y-8">
             <div className="relative group inline-block">
               <div className="absolute inset-0 bg-blue-500/10 rounded-xl blur-xl transition-all duration-500 group-hover:bg-blue-500/20"></div>
-              <img 
-                src="logo.png" 
-                alt="CBLLS Brand Logo" 
-                className="relative h-16 md:h-20 w-auto object-contain transition-transform duration-500 group-hover:scale-105"
-              />
+              {/* CHANGE: Replaced missing logo.png with SVG component for reliability on Vercel */}
+              <div className="relative flex items-center gap-3">
+                 <div className="bg-gradient-to-br from-blue-600 to-blue-400 p-3 rounded-xl shadow-lg">
+                    <Cpu className="w-8 h-8 text-white" />
+                 </div>
+                 <span className="text-2xl font-black text-white tracking-tighter">CBLLS</span>
+              </div>
             </div>
             <p className="text-slate-500 text-sm leading-relaxed max-w-xs italic">
               {config.generalInfo || 'Tecnología y electrodomésticos de alta gama. Calidad premium y garantía asegurada en cada compra.'}
