@@ -19,7 +19,8 @@ interface AdminPanelProps {
 const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
   const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'banners' | 'config'>('products');
   const [products, setProducts] = useState<Product[]>([]);
-  const [config, setConfig] = useState<AppConfig>(StoreService.getConfig());
+  // Inicialización segura de config para evitar fallos si localStorage está corrupto
+  const [config, setConfig] = useState<AppConfig>(() => StoreService.getConfig());
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [saving, setSaving] = useState(false);
   const [processingImage, setProcessingImage] = useState(false);
@@ -30,13 +31,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
   const [activeBannerIndex, setActiveBannerIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    // Suscripciones en tiempo real para ver cambios de otros admins o confirmación
+    // Suscripciones en tiempo real
     const unsub = StoreService.subscribeToProducts(setProducts);
     const unsubConfig = StoreService.subscribeToConfig(setConfig);
     return () => { unsub(); unsubConfig(); };
   }, []);
 
-  // Función utilitaria para comprimir imágenes y evitar llenar el LocalStorage
   const compressImage = (file: File, maxWidth: number = 1280, quality: number = 0.6): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -48,19 +48,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
           const canvas = document.createElement('canvas');
           let width = img.width;
           let height = img.height;
-
-          // Redimensionar si es muy grande
           if (width > maxWidth) {
             height = Math.round((height * maxWidth) / width);
             width = maxWidth;
           }
-
           canvas.width = width;
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           if (ctx) {
               ctx.drawImage(img, 0, 0, width, height);
-              // Exportar como JPEG con calidad configurada
               resolve(canvas.toDataURL('image/jpeg', quality));
           } else {
               reject(new Error("Canvas context error"));
@@ -79,12 +75,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
       return;
     }
 
-    // Obtener nombre de la categoría para dar contexto
-    const categoryName = config.categories.find(c => c.id === editingProduct.category)?.name || "Tecnología";
+    // Validación de API KEY usando import.meta.env (Estándar Vite)
+    // Fix: Cast import.meta to any to resolve TS error 'Property env does not exist on type ImportMeta'
+    const apiKey = (import.meta as any).env.VITE_API_KEY;
+    if (!apiKey) {
+        alert("Error de Configuración: No se encontró la API KEY de Google (VITE_API_KEY). Revisa las variables de entorno en Vercel.");
+        return;
+    }
+
+    const categoryName = config.categories?.find(c => c.id === editingProduct.category)?.name || "Tecnología";
 
     setGeneratingAI(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey });
       
       const prompt = `
         Genera contenido para un producto de e-commerce.
@@ -128,9 +131,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
         });
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating AI content:", error);
-      alert("No se pudo generar el contenido con IA. Verifica tu conexión o intenta más tarde.");
+      let msg = "No se pudo generar el contenido con IA.";
+      if (error.message?.includes('403')) msg += " Clave API inválida o sin permisos.";
+      else if (error.message?.includes('429')) msg += " Cuota excedida.";
+      alert(msg);
     } finally {
       setGeneratingAI(false);
     }
@@ -143,9 +149,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
     try {
       await StoreService.saveProduct(editingProduct);
       setEditingProduct(null);
-      // No es necesario llamar a onDataChange porque la suscripción actualiza la UI
     } catch (err) {
-      alert("⚠️ Error de Almacenamiento: No hay suficiente espacio. Intenta eliminar productos antiguos o usa imágenes más livianas.");
+      alert("⚠️ Error de Almacenamiento: No hay suficiente espacio.");
       console.error(err);
     } finally {
       setSaving(false);
@@ -167,27 +172,26 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
       await StoreService.saveConfig(config);
       alert('¡Ajustes sincronizados globalmente!');
     } catch (err) {
-      alert("⚠️ Memoria Llena: Las imágenes ocupan demasiado espacio. \n\nIntenta:\n1. Eliminar algún banner.\n2. Eliminar productos antiguos con imágenes pesadas.\n3. Reintentar.");
+      alert("⚠️ Error al guardar configuración. Revisa el tamaño de las imágenes.");
     } finally {
       setSaving(false);
     }
   };
 
   const handleResetConfig = async () => {
-    if (confirm("⚠️ ¿Estás seguro? Esto reseteará la configuración (banners, categorías, textos) a los valores originales del código. No afectará a los productos.")) {
+    if (confirm("⚠️ ¿Estás seguro? Esto reseteará la configuración a los valores originales.")) {
         await StoreService.resetConfig();
-        alert("Configuración reseteada. La página se recargará.");
+        alert("Configuración reseteada. Recargando...");
         window.location.reload();
     }
   };
 
   const handleAddBanner = () => {
-    if (config.headerSlides.length >= 4) {
+    if ((config.headerSlides?.length || 0) >= 4) {
       alert("Máximo 4 banners permitidos.");
       return;
     }
     const newSlide: HeaderSlide = {
-      // Usar random para asegurar ID único
       id: Date.now().toString() + Math.random().toString().slice(2),
       image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2670&auto=format&fit=crop',
       title: 'Nuevo Banner',
@@ -195,11 +199,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
       ctaText: 'Ver Catálogo',
       ctaLink: '#productos'
     };
-    setConfig({...config, headerSlides: [...config.headerSlides, newSlide]});
+    setConfig({...config, headerSlides: [...(config.headerSlides || []), newSlide]});
   };
 
   const handleRemoveBanner = (index: number) => {
-    if (config.headerSlides.length <= 1) {
+    if ((config.headerSlides?.length || 0) <= 1) {
         alert("Debes tener al menos un banner.");
         return;
     }
@@ -217,8 +221,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
     if (file && editingProduct) {
         setProcessingImage(true);
         try {
-            // COMPRESIÓN AGRESIVA PARA PRODUCTOS: 600px ancho, 0.6 calidad
-            // Esto reduce drásticamente el peso (aprox 50-80KB por imagen)
             const compressedBase64 = await compressImage(file, 600, 0.6); 
             setEditingProduct({...editingProduct, image: compressedBase64});
         } catch (error) {
@@ -226,7 +228,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
             alert("Error al procesar la imagen");
         } finally {
             setProcessingImage(false);
-            e.target.value = ''; // Reset input
+            e.target.value = '';
         }
     }
   };
@@ -236,8 +238,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
     if (file && activeBannerIndex !== null) {
         setProcessingImage(true);
         try {
-            // COMPRESIÓN OPTIMIZADA PARA BANNERS: 1280px ancho, 0.6 calidad
-            // Suficiente para HD, peso aprox 150-250KB
             const compressedBase64 = await compressImage(file, 1280, 0.6);
             updateSlide(activeBannerIndex, {image: compressedBase64});
             setActiveBannerIndex(null);
@@ -246,27 +246,27 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
             alert("Error al procesar la imagen");
         } finally {
             setProcessingImage(false);
-            e.target.value = ''; // Reset input
+            e.target.value = '';
         }
     }
   };
 
-  // --- LÓGICA DE CATEGORÍAS MEJORADA ---
+  // --- GESTIÓN DE CATEGORÍAS ---
   const handleAddCategory = () => {
     const newCat: Category = {
         id: 'cat-' + Date.now(),
         name: 'Nueva Colección',
         icon: 'smartphone'
     };
-    setConfig({...config, categories: [...config.categories, newCat]});
+    setConfig({...config, categories: [...(config.categories || []), newCat]});
   };
 
   const handleRemoveCategory = (index: number) => {
-    if (config.categories.length <= 1) {
+    if ((config.categories?.length || 0) <= 1) {
         alert("Debes mantener al menos una categoría.");
         return;
     }
-    if (window.confirm("¿Estás seguro de eliminar esta categoría? Los productos asignados podrían quedar sin clasificación.")) {
+    if (window.confirm("¿Estás seguro?")) {
         const newCats = [...config.categories];
         newCats.splice(index, 1);
         setConfig({...config, categories: newCats});
@@ -279,7 +279,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
     setConfig({...config, categories: newCats});
   };
 
-  // Helper para renderizar preview del icono en Admin
   const getIconPreview = (iconName: string) => {
     const map: Record<string, React.ReactNode> = {
       smartphone: <Smartphone className="w-6 h-6" />,
@@ -298,10 +297,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
     };
     return map[iconName] || <Package className="w-6 h-6" />;
   };
-  // ----------------------------------
+
+  // Renderizado condicional para evitar errores si config es undefined temporalmente
+  const safeCategories = Array.isArray(config.categories) ? config.categories : [];
+  const safeSlides = Array.isArray(config.headerSlides) ? config.headerSlides : [];
 
   return (
-    <div className="container mx-auto px-4 max-w-7xl">
+    <div className="container mx-auto px-4 max-w-7xl animate-fade-in">
       <div className="flex flex-col lg:flex-row gap-12">
         <aside className="lg:w-64 space-y-2">
           <h2 className="text-3xl font-black text-white mb-8 tracking-tighter">Administrador</h2>
@@ -340,7 +342,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
                 <>
                   <div className="flex justify-between items-center">
                     <h3 className="text-2xl font-black text-white">Inventario Realtime</h3>
-                    <button onClick={() => setEditingProduct({ id: 0, name: '', category: config.categories[0]?.id || '', price: 0, image: '', description: '', features: [], stock: 0, isActive: true, variants: [] })} className="bg-blue-600 px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest text-white hover:bg-blue-500 shadow-xl">Nuevo Producto</button>
+                    <button onClick={() => setEditingProduct({ id: 0, name: '', category: safeCategories[0]?.id || '', price: 0, image: '', description: '', features: [], stock: 0, isActive: true, variants: [] })} className="bg-blue-600 px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest text-white hover:bg-blue-500 shadow-xl">Nuevo Producto</button>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {products.map(p => (
@@ -381,7 +383,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
                              type="button" 
                              onClick={handleGenerateAI}
                              className="bg-blue-600/10 text-blue-400 hover:bg-blue-600 hover:text-white border border-blue-500/20 rounded-2xl px-4 flex items-center justify-center transition-all"
-                             title="Generar descripción y características con IA"
+                             title="Generar descripción con IA (Requiere API KEY)"
                            >
                              <Sparkles className="w-5 h-5" />
                            </button>
@@ -395,7 +397,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
                                 onChange={e => setEditingProduct({...editingProduct, category: e.target.value})} 
                                 className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-white outline-none cursor-pointer"
                             >
-                                {config.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                {safeCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
                         </div>
                         <div className="space-y-2">
@@ -439,6 +441,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
                             <textarea value={editingProduct.description} onChange={e => setEditingProduct({...editingProduct, description: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-white h-40 outline-none focus:border-blue-500/50 transition-colors" required />
                         </div>
                     </div>
+
                   </div>
 
                   <div className="flex gap-4 pt-10">
@@ -463,7 +466,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {config.categories.map((cat, idx) => (
+                {safeCategories.length === 0 && (
+                    <div className="col-span-2 text-center text-slate-500 py-10">No hay categorías. Añade una para comenzar.</div>
+                )}
+                {safeCategories.map((cat, idx) => (
                     <div key={cat.id || idx} className="bg-slate-950 p-6 rounded-3xl border border-slate-800 flex items-start gap-4 group hover:border-blue-500/30 transition-all relative">
                         <div className="absolute top-4 right-4">
                             <button onClick={() => handleRemoveCategory(idx)} className="p-2 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors">
@@ -472,7 +478,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
                         </div>
                         
                         <div className="flex items-center gap-4 w-full pr-10">
-                            {/* Visual Preview */}
                             <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center border border-slate-800 text-blue-500 shadow-lg">
                                 {getIconPreview(cat.icon)}
                             </div>
@@ -520,13 +525,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
                     <h3 className="text-2xl font-black text-white">Banners del Home</h3>
                     <p className="text-slate-500 text-xs">Máximo 4 imágenes. Se comprimirán agresivamente para ahorrar espacio.</p>
                 </div>
-                <button onClick={handleAddBanner} disabled={config.headerSlides.length >= 4} className="bg-blue-600 px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest text-white hover:bg-blue-500 disabled:opacity-40 flex items-center gap-2">
+                <button onClick={handleAddBanner} disabled={safeSlides.length >= 4} className="bg-blue-600 px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest text-white hover:bg-blue-500 disabled:opacity-40 flex items-center gap-2">
                    <Plus className="w-4 h-4" /> Añadir Banner
                 </button>
               </div>
 
               <div className="grid grid-cols-1 gap-12">
-                {config.headerSlides.map((slide, idx) => (
+                {safeSlides.map((slide, idx) => (
                   <div key={slide.id} className="bg-slate-950 p-8 rounded-3xl border border-slate-800 relative group transition-all hover:border-blue-500/20">
                     <div className="absolute top-6 right-6 flex gap-2">
                         <span className="bg-slate-800 text-white text-[9px] font-black px-2 py-1 rounded">Slide {idx + 1}</span>
@@ -557,21 +562,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
                         
                         <div className="aspect-video bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden relative group/img cursor-pointer" onClick={() => { setActiveBannerIndex(idx); bannerFileRef.current?.click(); }}>
                           <img src={slide.image} className="w-full h-full object-cover opacity-60 group-hover/img:opacity-100 transition-opacity" />
-                          
-                          {/* GUIAS VISUALES DE ZONA SEGURA MOVIL */}
-                          {/* Representa aprox el area central visible en un telefono (ratio 9:16 vertical dentro de un 16:9 horizontal) */}
                           <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[32%] border-x-2 border-dashed border-blue-500/30 bg-blue-500/5 pointer-events-none flex flex-col items-center justify-end pb-4">
                              <div className="bg-slate-900/80 px-2 py-1 rounded text-[8px] font-black text-blue-400 uppercase tracking-widest backdrop-blur-md border border-blue-500/20">
                                 Visible en Celular
                              </div>
                           </div>
-
                           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity z-10">
                              <Upload className="w-6 h-6 text-white mb-2" />
                              <span className="text-white font-black text-[10px] uppercase tracking-widest">Subir Imagen</span>
                           </div>
                         </div>
-                        <p className="text-[9px] text-slate-500">Mantén el sujeto principal dentro de la zona central punteada para que se vea bien en celulares.</p>
                       </div>
                     </div>
                   </div>
@@ -581,13 +581,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
               <input type="file" ref={bannerFileRef} className="hidden" accept="image/*" onChange={handleBannerImageUpload} />
 
               <div className="pt-10 flex flex-col items-center gap-4">
-                {config.headerSlides.length === 0 && (
+                {safeSlides.length === 0 && (
                     <div className="flex items-center gap-2 text-amber-500 bg-amber-500/10 px-4 py-2 rounded-lg">
                         <AlertTriangle className="w-4 h-4" />
-                        <span className="text-xs font-bold">Debes añadir al menos un banner para guardar.</span>
+                        <span className="text-xs font-bold">Debes añadir al menos un banner.</span>
                     </div>
                 )}
-                <button onClick={handleSaveConfig} disabled={saving || config.headerSlides.length === 0} className="bg-emerald-600 px-12 py-5 rounded-2xl font-black text-white uppercase text-xs tracking-[0.2em] shadow-xl shadow-emerald-900/40 transition-all hover:bg-emerald-500 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
+                <button onClick={handleSaveConfig} disabled={saving || safeSlides.length === 0} className="bg-emerald-600 px-12 py-5 rounded-2xl font-black text-white uppercase text-xs tracking-[0.2em] shadow-xl shadow-emerald-900/40 transition-all hover:bg-emerald-500 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
                   <CheckCircle className="w-5 h-5" /> Sincronizar Banners
                 </button>
               </div>
@@ -596,7 +596,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
 
           {activeTab === 'config' && (
             <div className="max-w-3xl space-y-12 animate-fade-in">
-                
                 <section className="space-y-8">
                     <h3 className="text-2xl font-black text-white">Global Settings</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -621,7 +620,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
                         </div>
                         <div>
                             <h4 className="font-bold text-white mb-1">Zona de Peligro: Resetear Configuración</h4>
-                            <p className="text-slate-500 text-xs mb-4">Si la página se ve rota o no se muestran las últimas actualizaciones de diseño, utiliza este botón. Tus productos NO se borrarán.</p>
+                            <p className="text-slate-500 text-xs mb-4">Si la página se ve rota, usa esto. Tus productos NO se borrarán.</p>
                             <button onClick={handleResetConfig} className="text-red-500 hover:text-red-400 font-black text-[10px] uppercase tracking-widest bg-red-500/10 hover:bg-red-500/20 px-6 py-3 rounded-xl transition-all">
                                 Forzar Limpieza y Recargar
                             </button>

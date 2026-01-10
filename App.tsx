@@ -10,7 +10,7 @@ import Footer from './components/Footer';
 import AdminPanel from './components/AdminPanel';
 import { Product, AppConfig, User } from './types';
 import { StoreService } from './services/store';
-import { X, AlertCircle, RefreshCw, Check, LogIn, UserPlus } from 'lucide-react';
+import { X, AlertCircle, RefreshCw, Check, LogIn, UserPlus, Sparkles, ShieldCheck } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -44,12 +44,31 @@ const AuthModal: React.FC<AuthModalProps> = ({
 
   if (!isOpen) return null;
 
+  if (success && authMode !== 'verification-check') {
+    return (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-950/98 transition-opacity duration-300"></div>
+            <div className="bg-slate-900 rounded-[2.5rem] border border-emerald-500/20 shadow-[0_0_100px_rgba(16,185,129,0.2)] w-full max-w-md relative overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col items-center justify-center p-12 text-center">
+                <div className="w-24 h-24 bg-emerald-500/10 rounded-full flex items-center justify-center mb-6 animate-[bounce_1s_infinite]">
+                    <Sparkles className="w-10 h-10 text-emerald-400" />
+                </div>
+                <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-2 animate-in slide-in-from-bottom-2 fade-in duration-500">
+                    ¡Bienvenido!
+                </h2>
+                <p className="text-emerald-500 text-xs font-black uppercase tracking-[0.3em] animate-in slide-in-from-bottom-4 fade-in duration-700 delay-100">
+                    Acceso Autorizado
+                </p>
+            </div>
+        </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-950/98 animate-in fade-in duration-200" onClick={onClose}></div>
+      <div className="absolute inset-0 bg-slate-950/98 animate-in fade-in duration-200" onClick={loading ? undefined : onClose}></div>
       
       <div className="bg-slate-900 rounded-[2.5rem] border border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.8)] w-full max-w-md relative overflow-hidden animate-in zoom-in-95 duration-200 will-change-transform">
-        <button onClick={onClose} className="absolute top-8 right-8 text-slate-500 hover:text-white transition-colors z-20"><X className="w-6 h-6" /></button>
+        <button onClick={onClose} disabled={loading} className="absolute top-8 right-8 text-slate-500 hover:text-white transition-colors z-20 disabled:opacity-0"><X className="w-6 h-6" /></button>
         
         {authMode !== 'verification-check' && (
             <div className="flex border-b border-white/5">
@@ -81,19 +100,19 @@ const AuthModal: React.FC<AuthModalProps> = ({
                         <AlertCircle className="w-4 h-4" /> {error}
                     </div>
                 )}
-                {success && (
-                    <div className="flex items-center gap-2 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-500 text-[10px] font-black uppercase tracking-widest">
-                        <Check className="w-4 h-4" /> {success}
-                    </div>
-                )}
 
-                <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 py-5 rounded-2xl text-white font-black uppercase text-[10px] tracking-[0.3em] mt-6 transition-all shadow-xl shadow-blue-900/40 active:scale-95 flex items-center justify-center gap-3">
+                <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 py-5 rounded-2xl text-white font-black uppercase text-[10px] tracking-[0.3em] mt-6 transition-all shadow-xl shadow-blue-900/40 active:scale-95 flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed">
                     {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : (authMode === 'login' ? <LogIn className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />)}
                     {loading ? 'Procesando...' : (authMode === 'login' ? 'Acceder ahora' : 'Crear mi cuenta')}
                 </button>
             </form>
           ) : (
             <div className="text-center space-y-8">
+                <div className="flex justify-center">
+                    <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800">
+                        <ShieldCheck className="w-12 h-12 text-blue-500" />
+                    </div>
+                </div>
                 <p className="text-slate-400 text-sm font-medium leading-relaxed">
                     Hemos enviado un enlace a <br/><span className="text-white font-black">{user?.email}</span>. <br/>Revisa tu correo para continuar.
                 </p>
@@ -147,7 +166,27 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // 2. Efecto para manejar el cierre automático del modal tras verificación
+  // 2. ROUTING MANUAL: Manejar acceso directo a /admin
+  useEffect(() => {
+    // Si la carga de datos (especialmente user) terminó
+    if (!loading) {
+      const path = window.location.pathname;
+      if (path === '/admin') {
+        if (user && user.role === 'admin') {
+          setIsAdminView(true);
+        } else if (user && user.role !== 'admin') {
+          // Usuario logueado pero no admin, redirigir a home silenciosamente
+          window.history.pushState({}, '', '/');
+          setIsAdminView(false);
+        } else {
+          // No logueado, intentar acceder a admin -> abrir modal
+          setAuthModalOpen(true);
+        }
+      }
+    }
+  }, [user, loading]);
+
+  // 3. Efecto para manejar el cierre automático del modal tras verificación
   useEffect(() => {
     if (user && (user.isVerified || user.role === 'admin') && authMode === 'verification-check') {
         setAuthModalOpen(false);
@@ -158,15 +197,38 @@ const App: React.FC = () => {
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoginError(''); setAuthLoading(true);
+    setLoginError(''); 
+    setAuthLoading(true);
+    
+    // Pequeño delay artificial para sentir el proceso si es local muy rápido
+    await new Promise(resolve => setTimeout(resolve, 800));
+
     if (authMode === 'login') {
       const res = await StoreService.login(formData.email, formData.password);
       if (res.success && res.user) {
         if (!res.user.isVerified && res.user.role !== 'admin') {
             setAuthMode('verification-check');
+            setAuthLoading(false);
+        } else {
+            // ÉXITO LOGIN: Mostrar transición
+            setLoginSuccess('success');
+            
+            // Si el usuario intentaba entrar a admin (por URL)
+            if (res.user.role === 'admin' && window.location.pathname === '/admin') {
+              setIsAdminView(true);
+            }
+
+            setTimeout(() => {
+                setAuthModalOpen(false);
+                setLoginSuccess('');
+                setAuthLoading(false);
+                setFormData({ name: '', email: '', password: '' });
+            }, 2000); // 2 segundos de gloria visual
+            return; // Retornamos aquí para no apagar el loading y cortar la animación
         }
       } else {
         setLoginError(res.message || 'Error de acceso');
+        setAuthLoading(false);
       }
     } else {
       const res = await StoreService.register(formData.name, formData.email, formData.password);
@@ -175,14 +237,18 @@ const App: React.FC = () => {
       } else {
         setLoginError(res.message || 'Error en registro');
       }
+      setAuthLoading(false);
     }
-    setAuthLoading(false);
   };
 
   const handleLogout = async () => {
     await StoreService.logout();
     setIsAdminView(false); 
     setAuthModalOpen(false);
+    // Limpiar URL si estaba en admin
+    if (window.location.pathname === '/admin') {
+      window.history.pushState({}, '', '/');
+    }
   };
 
   const filteredProducts = products.filter(p => {
@@ -204,6 +270,10 @@ const App: React.FC = () => {
             setAuthModalOpen(false);
             setLoginError('');
             setLoginSuccess('');
+            // Si cerró modal y estaba en path /admin sin loguear, limpiar path
+            if (window.location.pathname === '/admin' && !user) {
+               window.history.pushState({}, '', '/');
+            }
         }}
         authMode={authMode} setAuthMode={setAuthMode}
         formData={formData} setFormData={setFormData}
