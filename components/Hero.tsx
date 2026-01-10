@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { MessageCircle, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
 import { AppConfig } from '../types';
@@ -8,7 +9,6 @@ interface HeroProps {
 
 const Hero: React.FC<HeroProps> = ({ config }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
   
   // Protección robusta: Si no hay slides en la config, usa un default para evitar crash
   const defaultSlide = {
@@ -24,26 +24,21 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
     ? config.headerSlides 
     : [defaultSlide];
 
-  // 1. Preload Logic: Calentar la caché del navegador
+  // 1. Preload Logic: Calentar la caché del navegador para evitar flash en el primer cambio
   useEffect(() => {
     slides.forEach((slide) => {
       const img = new Image();
       img.src = slide.image;
-      img.onload = () => {
-        setLoadedImages(prev => {
-          const newSet = new Set(prev);
-          newSet.add(slide.image);
-          return newSet;
-        });
-      };
+      // No necesitamos lógica de estado aquí, solo forzar la descarga en caché
     });
   }, [slides]);
 
+  // Lógica del Intervalo
   useEffect(() => {
     if (slides.length <= 1) return;
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 5000); // 5 segundos por slide
+    }, 6000); // Aumentado a 6s para dar más tiempo a la lectura y disfrute de la imagen
     return () => clearInterval(interval);
   }, [slides.length]);
 
@@ -66,42 +61,55 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
     }
   };
 
-  // Safe access to current slide
+  // Safe access to current slide for text content
   const activeSlide = slides[currentSlide] || defaultSlide;
 
   return (
-    // CHANGE: h-screen -> h-[100dvh] para soporte móvil robusto (Dynamic Viewport Height)
+    // CHANGE: h-screen -> h-[100dvh] para soporte móvil robusto
     <section id="inicio" className="relative h-[100dvh] md:h-[95vh] bg-slate-950 overflow-hidden group">
-      {/* Dynamic Background */}
+      
+      {/* 
+        OPTIMIZACIÓN CRÍTICA: 
+        Los gradientes ahora están FUERA del bucle .map de las imágenes.
+        Esto evita que el gradiente parpadee (fades out) cuando cambia la imagen,
+        manteniendo la legibilidad del texto y la atmósfera constante.
+        Z-Index: 20 (encima de las imágenes, debajo del texto)
+      */}
+      <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/50 to-transparent z-20 pointer-events-none select-none"></div>
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent z-20 pointer-events-none select-none"></div>
+
+      {/* Image Slider Stack */}
       {slides.map((slide, index) => {
         const isActive = index === currentSlide;
-        // Lógica Anti-Flicker:
         return (
           <div 
             key={slide.id}
-            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out will-change-[opacity] ${
+            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out will-change-opacity ${
               isActive ? 'opacity-100 z-10' : 'opacity-0 z-0'
             }`}
+            aria-hidden={!isActive}
           >
-            {/* Capas de gradiente estáticas para no afectar performance del repaint */}
-            <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/40 to-transparent z-10 pointer-events-none"></div>
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent z-10 pointer-events-none"></div>
-            
             <img
               src={slide.image}
               alt={slide.title}
-              decoding="sync"
-              loading="eager"
-              className={`w-full h-full object-cover object-center filter brightness-50 contrast-125 transform-gpu will-change-transform transition-transform duration-[12000ms] ease-out ${
-                isActive ? 'scale-110 translate-x-4' : 'scale-100 translate-x-0'
+              // Optimizaciones de carga
+              loading={index === 0 ? "eager" : undefined}
+              decoding="async"
+              // Animación "Ken Burns" suave
+              className={`w-full h-full object-cover object-center transform-gpu will-change-transform transition-transform duration-[12000ms] ease-out ${
+                isActive ? 'scale-110 translate-x-0' : 'scale-100 translate-x-0'
               }`}
+              style={{ 
+                // Evita layout shift forzando el renderizado correcto
+                objectPosition: 'center'
+              }}
             />
           </div>
         );
       })}
 
-      {/* Hero Content */}
-      <div className="relative z-20 container mx-auto px-4 h-full flex items-center">
+      {/* Hero Content (Z-30 para estar encima de gradientes e imágenes) */}
+      <div className="relative z-30 container mx-auto px-4 h-full flex items-center">
         <div className="max-w-4xl space-y-6 md:space-y-10">
           <div className="flex items-center gap-3 animate-fade-in-up">
             <div className="h-px w-8 md:w-12 bg-blue-500"></div>
@@ -110,9 +118,12 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
             </span>
           </div>
           
-          {/* Key trick: Usamos key={currentSlide} en el texto para forzar la re-animación CSS al cambiar de slide */}
+          {/* 
+             Key trick: Usamos key={activeSlide.id} SOLO en el contenedor de texto.
+             Esto permite que el texto se anime (entre) cada vez que cambia el slide,
+             sin forzar el desmontaje del componente padre (Hero).
+          */}
           <div key={activeSlide.id} className="space-y-4 md:space-y-10">
-              {/* CHANGE: Responsive text sizing adjusted for better mobile fit */}
               <h1 className="text-4xl sm:text-5xl md:text-8xl font-black text-white leading-[1.1] tracking-tighter drop-shadow-2xl font-heading animate-[fadeInLeft_0.8s_ease-out]">
                 {activeSlide.title.split(' ').map((word, i) => (
                     <span key={i} className={i % 2 !== 0 ? 'text-blue-500' : ''}>{word} </span>
@@ -124,6 +135,7 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
               </p>
           </div>
           
+          {/* Botones estáticos (no dependen del slide.id para evitar parpadeo de UI) */}
           <div className="flex flex-col sm:flex-row gap-4 md:gap-5 pt-6 md:pt-8 animate-[fadeInUp_1.2s_ease-out]">
             <a
               href={activeSlide.ctaLink}
@@ -150,16 +162,18 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
         <div className="absolute bottom-10 md:bottom-20 right-4 md:right-12 z-30 flex items-center gap-4">
           <button 
             onClick={prevSlide}
-            className="p-3 md:p-4 bg-slate-900/50 hover:bg-slate-900 border border-slate-800 text-white rounded-2xl backdrop-blur-md transition-all hover:-translate-y-1 active:translate-y-0"
+            className="p-3 md:p-4 bg-slate-900/50 hover:bg-slate-900 border border-slate-800 text-white rounded-2xl backdrop-blur-md transition-all hover:-translate-y-1 active:translate-y-0 group"
+            aria-label="Anterior"
           >
-            <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
+            <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 group-hover:text-blue-400" />
           </button>
           <div className="h-px w-8 md:w-12 bg-slate-800"></div>
           <button 
             onClick={nextSlide}
-            className="p-3 md:p-4 bg-slate-900/50 hover:bg-slate-900 border border-slate-800 text-white rounded-2xl backdrop-blur-md transition-all hover:-translate-y-1 active:translate-y-0"
+            className="p-3 md:p-4 bg-slate-900/50 hover:bg-slate-900 border border-slate-800 text-white rounded-2xl backdrop-blur-md transition-all hover:-translate-y-1 active:translate-y-0 group"
+            aria-label="Siguiente"
           >
-            <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
+            <ChevronRight className="w-5 h-5 md:w-6 md:h-6 group-hover:text-blue-400" />
           </button>
         </div>
       )}
@@ -170,6 +184,7 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
           <button
             key={idx}
             onClick={() => setCurrentSlide(idx)}
+            aria-label={`Ir al slide ${idx + 1}`}
             className={`w-1 rounded-full transition-all duration-500 ${
               idx === currentSlide ? 'h-10 md:h-16 bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)]' : 'h-3 md:h-4 bg-slate-800 hover:bg-slate-600'
             }`}
