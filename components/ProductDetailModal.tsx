@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { X, MessageCircle, Check, AlertTriangle, List, Lock, Mail, Cpu } from 'lucide-react';
 import { Product, Variant, AppConfig, User } from '../types';
@@ -65,21 +66,21 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, isOpen
   };
 
   return (
-    // CHANGE: p-0 on mobile, p-4 on md+. Z-index high.
+    // CHANGE: p-0 on mobile, p-4 on md+. Z-index high. Safe area padding adjustment.
     <div className="fixed inset-0 z-[300] flex items-end md:items-center justify-center md:p-4">
       <div className="absolute inset-0 bg-slate-950/98 animate-in fade-in duration-200" onClick={onClose}></div>
       
       {/* CHANGE: h-full on mobile, rounded-none on mobile, rounded-[3rem] on desktop. */}
       <div className="relative bg-slate-900 w-full md:max-w-5xl h-[100dvh] md:h-auto md:max-h-[90vh] md:rounded-[3rem] border-t md:border border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col md:flex-row overflow-hidden animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-200 will-change-transform">
         
-        {/* Close Button: Repositioned for mobile thumb reach */}
-        <button onClick={onClose} className="absolute top-4 right-4 md:top-8 md:right-8 z-20 p-3 bg-slate-950/80 hover:bg-slate-950 text-white rounded-full transition-all border border-white/10 shadow-lg">
+        {/* Close Button: Repositioned for mobile thumb reach with Safe Area margin */}
+        <button onClick={onClose} className="absolute top-4 right-4 mt-safe md:mt-0 md:top-8 md:right-8 z-20 p-3 bg-slate-950/80 hover:bg-slate-950 text-white rounded-full transition-all border border-white/10 shadow-lg">
           <X className="w-6 h-6" />
         </button>
 
         {/* Image Section */}
         <div className="w-full md:w-1/2 bg-white p-6 md:p-12 flex flex-col items-center justify-center relative min-h-[35vh] md:min-h-[400px]">
-          <div className="absolute top-4 left-6 md:top-8 md:left-8 flex items-center gap-2 opacity-10">
+          <div className="absolute top-4 left-6 md:top-8 md:left-8 flex items-center gap-2 opacity-10 pt-safe md:pt-0">
              <Cpu className="w-6 h-6 text-slate-950" />
              <span className="font-black text-slate-950 tracking-tighter">CBLLS</span>
           </div>
@@ -100,7 +101,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, isOpen
         </div>
 
         {/* Info Section - Scrollable */}
-        <div className="w-full md:w-1/2 p-6 md:p-12 flex flex-col overflow-y-auto bg-slate-900 pb-24 md:pb-12">
+        <div className="w-full md:w-1/2 p-6 md:p-12 flex flex-col overflow-y-auto bg-slate-900 pb-safe md:pb-12">
           <div className="mb-2 md:mb-4">
             <span className="text-blue-500 text-[10px] font-black uppercase tracking-[0.4em]">
                 {config.categories.find(c => c.id === product.category)?.name || 'Colección Premium'}
@@ -180,7 +181,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, isOpen
             </div>
           )}
 
-          <div className="mt-auto pt-6 md:pt-8 border-t border-white/5 pb-safe">
+          <div className="mt-auto pt-6 md:pt-8 border-t border-white/5 pb-24 md:pb-0">
             <button
               onClick={handleInteraction}
               disabled={isOutOfStock}

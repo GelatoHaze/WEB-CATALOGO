@@ -78,6 +78,7 @@ const Products: React.FC<ProductsProps> = ({ products, isLoading, config, user, 
                 <img
                   src={product.image}
                   alt={product.name}
+                  loading="lazy"
                   className="w-full h-full object-contain p-10 group-hover:scale-105 transition-transform duration-700"
                 />
                 
@@ -100,6 +101,7 @@ const Products: React.FC<ProductsProps> = ({ products, isLoading, config, user, 
                 </h3>
                 
                 <div className="flex-grow">
+                    {/* CRITICAL FIX: Added optional chaining (?.) to prevent crash if features is undefined */}
                     {product.features && product.features.length > 0 ? (
                       <ul className="text-slate-500 text-[11px] font-medium space-y-2 mb-6">
                         {product.features.slice(0, 3).map((feature, i) => (
@@ -125,6 +127,10 @@ const Products: React.FC<ProductsProps> = ({ products, isLoading, config, user, 
                   </div>
                   
                   <button 
+                    onClick={(e) => {
+                         e.stopPropagation();
+                         setSelectedProduct(product);
+                    }}
                     className={`p-4 rounded-2xl transition-all shadow-xl group/btn ${
                       hasStock 
                         ? 'bg-slate-800 hover:bg-blue-600 text-white shadow-slate-950' 

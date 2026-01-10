@@ -1,3 +1,4 @@
+
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -9,7 +10,7 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
     minify: 'esbuild',
-    target: 'esnext', // Optimizes for modern browsers/mobiles
+    target: 'es2020', // CHANGED: esnext -> es2020 for better mobile compatibility
     cssCodeSplit: true,
     rollupOptions: {
       output: {

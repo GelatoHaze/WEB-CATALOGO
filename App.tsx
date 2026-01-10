@@ -45,7 +45,8 @@ const AuthModal: React.FC<AuthModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+    // CRITICAL FIX: z-index increased to 1000 to ensure it sits above ProductModal (z-300)
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-950/98 animate-in fade-in duration-200" onClick={onClose}></div>
       
       <div className="bg-slate-900 rounded-[2.5rem] border border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.8)] w-full max-w-md relative overflow-hidden animate-in zoom-in-95 duration-200 will-change-transform">
@@ -249,30 +250,4 @@ const App: React.FC = () => {
                      <p className="text-blue-500 font-black text-[10px] uppercase tracking-[0.4em]">Hardware de Vanguardia</p>
                    </div>
                    <div className="bg-slate-950/80 px-6 py-3 rounded-2xl border border-white/5 backdrop-blur-sm">
-                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{filteredProducts.length} Productos Disponibles</span>
-                   </div>
-                </div>
-                <Products 
-                    products={filteredProducts} 
-                    isLoading={loading} 
-                    config={config} 
-                    user={user} 
-                    onLoginReq={handleOpenAuth} 
-                />
-              </div>
-            </section>
-            <Features />
-            <Contact 
-              user={user} 
-              config={config} 
-              onLoginReq={handleOpenAuth} 
-            />
-          </main>
-          <Footer config={config} />
-        </>
-      )}
-    </div>
-  );
-};
-
-export default App;
+                     <span className="text-[10px] font

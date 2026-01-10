@@ -299,7 +299,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
                         <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Nombre</label>
                         <input type="text" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-white focus:border-blue-500 outline-none" required />
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Categoría</label>
                             <select value={editingProduct.category} onChange={e => setEditingProduct({...editingProduct, category: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-white outline-none">
@@ -307,7 +307,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onDataChange }) => {
                             </select>
                         </div>
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Stock Actual</label>
+                             {/* ADDED MISSING PRICE INPUT */}
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Precio</label>
+                            <div className="relative">
+                                <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                                <input type="number" value={editingProduct.price} onChange={e => setEditingProduct({...editingProduct, price: parseFloat(e.target.value) || 0})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-10 pr-5 py-4 text-white outline-none" placeholder="0.00" />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Stock</label>
                             <input type="number" value={editingProduct.stock} onChange={e => setEditingProduct({...editingProduct, stock: parseInt(e.target.value) || 0})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-white outline-none" />
                         </div>
                       </div>
